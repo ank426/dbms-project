@@ -2,7 +2,7 @@ CREATE TABLE Patient (
     Patient_ID INT PRIMARY KEY,
     First_Name VARCHAR(100),
     Last_Name VARCHAR(100),
-    Age INT,
+    Age INT CHECK (Age >= 18),
     Gender VARCHAR(10),
     Date_of_Birth DATE,
     Contact_Number VARCHAR(15),

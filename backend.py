@@ -2,13 +2,12 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import mysql.connector
 from mysql.connector import Error
-from datetime import datetime
+from datetime import datetime, date
 import json
 
 app = Flask(__name__)
-CORS(app)  # Enable CORS for all routes
+CORS(app)
 
-# Database configuration
 DB_CONFIG = {
     "host": "localhost",
     "user": "ankit",
@@ -26,13 +25,11 @@ def create_connection():
         print(f"Error connecting to database: {e}")
         return None
 
-# Helper function to convert MySQL datetime to string
 def datetime_handler(x):
-    if isinstance(x, datetime):
+    if isinstance(x, (datetime, date)):
         return x.isoformat()
     raise TypeError("Unknown type")
 
-# Generic GET endpoint for any table
 @app.route('/api/<table>', methods=['GET'])
 def get_all(table):
     conn = create_connection()
@@ -51,7 +48,6 @@ def get_all(table):
             conn.close()
     return jsonify({'status': 'error', 'message': 'Database connection failed'}), 500
 
-# Patient endpoints
 @app.route('/api/patients', methods=['POST'])
 def add_patient():
     data = request.json
@@ -92,7 +88,6 @@ def delete_patient(patient_id):
             conn.close()
     return jsonify({'status': 'error', 'message': 'Database connection failed'}), 500
 
-# Doctor endpoints
 @app.route('/api/doctors', methods=['POST'])
 def add_doctor():
     data = request.json
@@ -133,7 +128,6 @@ def delete_doctor(doctor_id):
             conn.close()
     return jsonify({'status': 'error', 'message': 'Database connection failed'}), 500
 
-# Laboratory endpoints
 @app.route('/api/laboratories', methods=['POST'])
 def add_laboratory():
     data = request.json
@@ -157,7 +151,6 @@ def add_laboratory():
             conn.close()
     return jsonify({'status': 'error', 'message': 'Database connection failed'}), 500
 
-# Visit endpoints
 @app.route('/api/visits', methods=['POST'])
 def add_visit():
     data = request.json
@@ -182,7 +175,6 @@ def add_visit():
             conn.close()
     return jsonify({'status': 'error', 'message': 'Database connection failed'}), 500
 
-# Medication endpoints
 @app.route('/api/medications', methods=['POST'])
 def add_medication():
     data = request.json
@@ -208,7 +200,6 @@ def add_medication():
             conn.close()
     return jsonify({'status': 'error', 'message': 'Database connection failed'}), 500
 
-# Clinical Trial endpoints
 @app.route('/api/clinical_trials', methods=['POST'])
 def add_clinical_trial():
     data = request.json
@@ -235,7 +226,6 @@ def add_clinical_trial():
             conn.close()
     return jsonify({'status': 'error', 'message': 'Database connection failed'}), 500
 
-# Results endpoints
 @app.route('/api/results', methods=['POST'])
 def add_result():
     data = request.json
@@ -260,7 +250,6 @@ def add_result():
             conn.close()
     return jsonify({'status': 'error', 'message': 'Database connection failed'}), 500
 
-# Reactions endpoints
 @app.route('/api/reactions', methods=['POST'])
 def add_reaction():
     data = request.json
@@ -285,14 +274,12 @@ def add_reaction():
             conn.close()
     return jsonify({'status': 'error', 'message': 'Database connection failed'}), 500
 
-# Generic delete endpoint for any table
 @app.route('/api/<table>/<int:id>', methods=['DELETE'])
 def delete_record(table, record_id):
     conn = create_connection()
     if conn:
         try:
             cursor = conn.cursor()
-            # Determine the ID column name based on the table
             id_columns = {
                 'Patient': 'Patient_ID',
                 'Doctor': 'Doctor_ID',
