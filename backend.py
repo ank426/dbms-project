@@ -61,11 +61,11 @@ def add_patient():
             cursor = conn.cursor()
             query = """
             INSERT INTO Patient (
-              Patient_ID, First_Name, Last_Name, Gender, Date_of_Birth, Contact_Number, Email, Address, Medical_History
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+              Patient_ID, First_Name, Last_Name, Age, Gender, Date_of_Birth, Contact_Number, Email, Address, Medical_History
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """
             cursor.execute(query, (
-                data['Patient_ID'], data['First_Name'], data['Last_Name'],
+                data['Patient_ID'], data['First_Name'], data['Last_Name'], data['Age'],
                 data['Gender'], data['Date_of_Birth'], data['Contact_Number'],
                 data['Email'], data['Address'], data['Medical_History']
             ))
@@ -310,6 +310,26 @@ def delete_record(table, record_id):
             cursor.execute(f"DELETE FROM {table} WHERE {id_column} = %s", (record_id,))
             conn.commit()
             return jsonify({'status': 'success', 'message': f'{table} record deleted successfully'})
+        except Error as e:
+            return jsonify({'status': 'error', 'message': str(e)}), 400
+        finally:
+            conn.close()
+    return jsonify({'status': 'error', 'message': 'Database connection failed'}), 500
+
+@app.route('/api/trial_information/<int:trial_id>', methods=['GET'])
+def get_trial_information(trial_id):
+    conn = create_connection()
+    if conn:
+        try:
+            cursor = conn.cursor(dictionary=True)
+            cursor.callproc('GetTrialInformation', [trial_id])
+            results = []
+            for result in cursor.stored_results():
+                results.extend(result.fetchall())
+            return jsonify({
+                'status': 'success',
+                'data': json.loads(json.dumps(results, default=datetime_handler))
+            })
         except Error as e:
             return jsonify({'status': 'error', 'message': str(e)}), 400
         finally:

@@ -1,5 +1,6 @@
 import streamlit as st
 import mysql.connector
+import requests
 from mysql.connector import Error
 import pandas as pd
 
@@ -71,6 +72,7 @@ def patient_page():
             patient_id = st.number_input("Patient ID", min_value=1)
             first_name = st.text_input("First Name")
             last_name = st.text_input("Last Name")
+            age = st.number_input("Age", min_value=18)
             gender = st.selectbox("Gender", ["Male", "Female", "Other"])
             dob = st.date_input("Date of Birth")
             contact = st.text_input("Contact Number")
@@ -85,10 +87,10 @@ def patient_page():
                         cursor = conn.cursor()
                         query = """
                                 INSERT INTO Patient (
-                                    Patient_ID, First_Name, Last_Name, Gender, Date_of_Birth, Contact_Number, Email, Address, Medical_History
-                                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                                    Patient_ID, First_Name, Last_Name, Age, Gender, Date_of_Birth, Contact_Number, Email, Address, Medical_History
+                                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                                 """
-                        cursor.execute(query, (patient_id, first_name, last_name, gender,
+                        cursor.execute(query, (patient_id, first_name, last_name, age, gender,
                                             dob, contact, email, address, medical_history))
                         conn.commit()
                         st.success("Patient added successfully!")
@@ -360,11 +362,64 @@ def medication_page():
             if st.button("Delete Medication"):
                 delete_record("Medication", "Medication_ID", medication_to_delete[0])
 
-# Clinical Trial Management
+# # Clinical Trial Management
+# def clinical_trial_page():
+#     st.title("Clinical Trial Management")
+#
+#     tab1, tab2, tab3 = st.tabs(["View Clinical Trials", "Add Clinical Trial", "Delete Clinical Trial"])
+#
+#     with tab1:
+#         trials = fetch_all("Clinical_Trial")
+#         if trials:
+#             df = pd.DataFrame(trials)
+#             st.dataframe(df)
+#
+#     with tab2:
+#         with st.form("add_clinical_trial"):
+#             trial_id = st.number_input("Trial ID", min_value=1)
+#             trial_name = st.text_input("Trial Name")
+#             description = st.text_area("Description")
+#             start_date = st.date_input("Start Date")
+#             end_date = st.date_input("End Date")
+#             patient_id = st.number_input("Patient ID", min_value=1)
+#             medication_id = st.number_input("Medication ID", min_value=1)
+#             doctor_id = st.number_input("Doctor ID", min_value=1)
+#
+#             if st.form_submit_button("Add Clinical Trial"):
+#                 conn = create_connection()
+#                 if conn:
+#                     try:
+#                         cursor = conn.cursor()
+#                         query = """
+#                         INSERT INTO Clinical_Trial (
+#                             Trial_ID, Trial_Name, Description, Trial_Start_Date, Trial_End_Date, Patient_ID, Medication_ID, Doctor_ID
+#                         ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+#                         """
+#                         cursor.execute(query, (trial_id, trial_name, description,
+#                                             start_date, end_date, patient_id,
+#                                             medication_id, doctor_id))
+#                         conn.commit()
+#                         st.success("Clinical Trial added successfully!")
+#                     except Error as e:
+#                         st.error(f"Error adding clinical trial: {e}")
+#                     finally:
+#                         conn.close()
+#
+#     with tab3:
+#         trials = fetch_all("Clinical_Trial")
+#         if trials:
+#             trial_to_delete = st.selectbox(
+#                 "Select Clinical Trial to Delete",
+#                 options=[(t['Trial_ID'], t['Trial_Name']) for t in trials],
+#                 format_func=lambda x: x[1]
+#             )
+#             if st.button("Delete Clinical Trial"):
+#                 delete_record("Clinical_Trial", "Trial_ID", trial_to_delete[0])
+
 def clinical_trial_page():
     st.title("Clinical Trial Management")
 
-    tab1, tab2, tab3 = st.tabs(["View Clinical Trials", "Add Clinical Trial", "Delete Clinical Trial"])
+    tab1, tab2, tab3, tab4 = st.tabs(["View Clinical Trials", "Trial Details", "Add Clinical Trial", "Delete Clinical Trial"])
 
     with tab1:
         trials = fetch_all("Clinical_Trial")
@@ -373,6 +428,75 @@ def clinical_trial_page():
             st.dataframe(df)
 
     with tab2:
+        st.subheader("Trial Information")
+        # Get list of trials for selection
+        trials = fetch_all("Clinical_Trial")
+        if trials:
+            selected_trial = st.selectbox(
+                "Select Trial to View Details",
+                options=[(t['Trial_ID'], t['Trial_Name']) for t in trials],
+                format_func=lambda x: f"{x[0]} - {x[1]}"
+            )
+            
+            if selected_trial:
+                # Fetch detailed trial information
+                try:
+                    response = requests.get(f"http://localhost:5000/api/trial_information/{selected_trial[0]}")
+                    if response.status_code == 200:
+                        trial_data = response.json()['data']
+                        if trial_data:
+                            trial_info = trial_data[0]  # Get the first (and should be only) result
+                            
+                            # Display information in organized sections using columns and expanders
+                            col1, col2 = st.columns(2)
+                            
+                            with col1:
+                                with st.expander("Trial Information", expanded=True):
+                                    st.write("**Trial ID:**", trial_info['Trial_ID'])
+                                    st.write("**Trial Name:**", trial_info['Trial_Name'])
+                                    st.write("**Description:**", trial_info['Description'])
+                                    st.write("**Start Date:**", trial_info['Trial_Start_Date'])
+                                    st.write("**End Date:**", trial_info['Trial_End_Date'])
+                                
+                                with st.expander("Patient Information", expanded=True):
+                                    st.write("**Patient ID:**", trial_info['Patient_ID'])
+                                    st.write("**Patient Name:**", 
+                                           f"{trial_info['Patient_First_Name']} {trial_info['Patient_Last_Name']}")
+                            
+                            with col2:
+                                with st.expander("Doctor Information", expanded=True):
+                                    st.write("**Doctor ID:**", trial_info['Doctor_ID'])
+                                    st.write("**Doctor Name:**", 
+                                           f"{trial_info['Doctor_First_Name']} {trial_info['Doctor_Last_Name']}")
+                                    st.write("**Specialization:**", trial_info['Specialization'])
+                                
+                                with st.expander("Medication Information", expanded=True):
+                                    st.write("**Medication ID:**", trial_info['Medication_ID'])
+                                    st.write("**Medication Name:**", trial_info['Medication_Name'])
+                                    st.write("**Dosage:**", trial_info['Dosage'])
+                                    st.write("**Administration Method:**", trial_info['Administration_Method'])
+                                    st.write("**Side Effects:**", trial_info['Side_Effects'])
+                            
+                            # Results and Laboratory information in full width
+                            with st.expander("Results Information", expanded=True):
+                                if trial_info['Result_ID']:
+                                    st.write("**Result ID:**", trial_info['Result_ID'])
+                                    st.write("**Result Date:**", trial_info['Result_Date'])
+                                    st.write("**Result Details:**", trial_info['Result_Details'])
+                                    st.write("**Laboratory ID:**", trial_info['Lab_ID'])
+                                    st.write("**Laboratory Name:**", trial_info['Lab_Name'])
+                                else:
+                                    st.info("No results recorded for this trial yet.")
+                        else:
+                            st.warning("No detailed information found for this trial.")
+                    else:
+                        st.error("Failed to fetch trial information.")
+                except requests.exceptions.RequestException as e:
+                    st.error(f"Error connecting to the backend: {str(e)}")
+        else:
+            st.info("No trials available to view.")
+
+    with tab3:
         with st.form("add_clinical_trial"):
             trial_id = st.number_input("Trial ID", min_value=1)
             trial_name = st.text_input("Trial Name")
@@ -403,7 +527,7 @@ def clinical_trial_page():
                     finally:
                         conn.close()
 
-    with tab3:
+    with tab4:
         trials = fetch_all("Clinical_Trial")
         if trials:
             trial_to_delete = st.selectbox(
@@ -514,6 +638,37 @@ def reactions_page():
             )
             if st.button("Delete Reaction"):
                 delete_record("Reactions", "Reaction_ID", reaction_to_delete[0])
+
+# def view_trial_details(trial_id):
+#     # Make API call to get trial information
+#     response = requests.get(f'http://localhost:5000/api/trial_information/{trial_id}')
+#     if response.status_code == 200:
+#         data = response.json()['data']
+#         if data:
+#             trial = data[0]  # Get the first (and should be only) trial
+#             
+#             st.subheader("Trial Details")
+#             st.write(f"Name: {trial['Trial_Name']}")
+#             st.write(f"Description: {trial['Description']}")
+#             st.write(f"Duration: {trial['Trial_Start_Date']} to {trial['Trial_End_Date']}")
+#             
+#             st.subheader("Patient Information")
+#             st.write(f"Name: {trial['Patient_First_Name']} {trial['Patient_Last_Name']}")
+#             
+#             st.subheader("Doctor Information")
+#             st.write(f"Name: {trial['Doctor_First_Name']} {trial['Doctor_Last_Name']}")
+#             st.write(f"Specialization: {trial['Specialization']}")
+#             
+#             st.subheader("Medication Information")
+#             st.write(f"Name: {trial['Medication_Name']}")
+#             st.write(f"Dosage: {trial['Dosage']}")
+#             st.write(f"Administration Method: {trial['Administration_Method']}")
+#             
+#             if trial['Result_ID']:
+#                 st.subheader("Results")
+#                 st.write(f"Date: {trial['Result_Date']}")
+#                 st.write(f"Details: {trial['Result_Details']}")
+#                 st.write(f"Laboratory: {trial['Lab_Name']}")
 
 # Update the main() function to include the new pages
 def main():

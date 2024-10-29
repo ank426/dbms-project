@@ -2,6 +2,7 @@ CREATE TABLE Patient (
     Patient_ID INT PRIMARY KEY,
     First_Name VARCHAR(100),
     Last_Name VARCHAR(100),
+    Age INT,
     Gender VARCHAR(10),
     Date_of_Birth DATE,
     Contact_Number VARCHAR(15),
@@ -37,7 +38,7 @@ CREATE TABLE Visit (
     Visit_Details VARCHAR(255),
     Prescription_ID INT,
     FOREIGN KEY (Patient_ID) REFERENCES Patient(Patient_ID),
-    FOREIGN KEY (Doctor_ID) REFERENCES Doctor(Doctor_ID),
+    FOREIGN KEY (Doctor_ID) REFERENCES Doctor(Doctor_ID)
 );
 
 DELIMITER $$
@@ -108,3 +109,46 @@ CREATE TABLE Reactions (
     FOREIGN KEY (Patient_ID) REFERENCES Patient(Patient_ID),
     FOREIGN KEY (Medication_ID) REFERENCES Medication(Medication_ID)
 );
+
+DELIMITER $$
+
+CREATE PROCEDURE GetTrialInformation(IN trial_id_param INT)
+BEGIN
+    SELECT 
+        ct.Trial_ID,
+        ct.Trial_Name,
+        ct.Description,
+        ct.Trial_Start_Date,
+        ct.Trial_End_Date,
+        -- Patient Information
+        p.Patient_ID,
+        p.First_Name AS Patient_First_Name,
+        p.Last_Name AS Patient_Last_Name,
+        -- Doctor Information
+        d.Doctor_ID,
+        d.First_Name AS Doctor_First_Name,
+        d.Last_Name AS Doctor_Last_Name,
+        d.Specialization,
+        -- Medication Information
+        m.Medication_ID,
+        m.Name AS Medication_Name,
+        m.Dosage,
+        m.Side_Effects,
+        m.Administration_Method,
+        -- Results Information
+        r.Result_ID,
+        r.Result_Date,
+        r.Result_Details,
+        -- Laboratory Information
+        l.Lab_ID,
+        l.Name AS Lab_Name
+    FROM Clinical_Trial ct
+    LEFT JOIN Patient p ON ct.Patient_ID = p.Patient_ID
+    LEFT JOIN Doctor d ON ct.Doctor_ID = d.Doctor_ID
+    LEFT JOIN Medication m ON ct.Medication_ID = m.Medication_ID
+    LEFT JOIN Results r ON ct.Trial_ID = r.Trial_ID
+    LEFT JOIN Laboratory l ON r.Lab_ID = l.Lab_ID
+    WHERE ct.Trial_ID = trial_id_param;
+END $$
+
+DELIMITER ;
