@@ -159,7 +159,7 @@ def get_trial_information(trial_id):
 def patient_page():
     st.title("Patient Management")
 
-    tab1, tab2, tab3, tab4 = st.tabs(["View Patients", "Add Patient", "Update Patien", "Delete Patient"])
+    tab1, tab2, tab3, tab4 = st.tabs(["View Patients", "Add Patient", "Update Patient", "Delete Patient"])
 
     with tab1:
         patients = fetch_all("Patient")
@@ -205,7 +205,7 @@ def patient_page():
         if patients:
             selected_patient = st.selectbox(
                 "Select Patient to Update",
-                options=[(p['Patient_ID'], f"{p['First_Name']} {p['Last_Name']}") for p in patients],
+                options=[(p['Patient_ID'], f"{p['Patient_ID']} - {p['First_Name']} {p['Last_Name']}") for p in patients],
                 format_func=lambda x: x[1]
             )
 
@@ -240,7 +240,7 @@ def patient_page():
         if patients:
             patient_to_delete = st.selectbox(
                 "Select Patient to Delete",
-                options=[(p['Patient_ID'], f"{p['First_Name']} {p['Last_Name']}") for p in patients],
+                options=[(p['Patient_ID'], f"{p['Patient_ID']} - {p['First_Name']} {p['Last_Name']}") for p in patients],
                 format_func=lambda x: x[1]
             )
             if st.button("Delete Patient"):
@@ -292,7 +292,7 @@ def doctor_page():
         if doctors:
             selected_doctor = st.selectbox(
                 "Select Doctor to Update",
-                options=[(d['Doctor_ID'], f"{d['First_Name']} {d['Last_Name']}") for d in doctors],
+                options=[(d['Doctor_ID'], f"{d['Doctor_ID']} - {d['First_Name']} {d['Last_Name']}") for d in doctors],
                 format_func=lambda x: x[1]
             )
 
@@ -324,7 +324,7 @@ def doctor_page():
         if doctors:
             doctor_to_delete = st.selectbox(
                 "Select Doctor to Delete",
-                options=[(d['Doctor_ID'], f"{d['First_Name']} {d['Last_Name']}") for d in doctors],
+                options=[(d['Doctor_ID'], f"{d['Doctor_ID']} - {d['First_Name']} {d['Last_Name']}") for d in doctors],
                 format_func=lambda x: x[1]
             )
             if st.button("Delete Doctor"):
@@ -333,25 +333,64 @@ def doctor_page():
 def visit_page():
     st.title("Visit Management")
 
+    # Fetch patients and doctors for dropdowns
+    patients = fetch_all("Patient")
+    doctors = fetch_all("Doctor")
+
+    # Create patient and doctor mapping for easy lookup
+    # patient_map = {p['Patient_ID']: f"{p['First_Name']} {p['Last_Name']}" for p in patients}
+    # doctor_map = {d['Doctor_ID']: f"Dr. {d['First_Name']} {d['Last_Name']}" for d in doctors}
+
     tab1, tab2, tab3, tab4 = st.tabs(["View Visits", "Add Visit", "Update Visit", "Delete Visit"])
 
     with tab1:
-        visits = fetch_all("Visit")
-        if visits:
-            df = pd.DataFrame(visits)
-            st.dataframe(df)
+        # Fetch visits with joined patient and doctor information
+        conn = create_connection()
+        if conn:
+            try:
+                cursor = conn.cursor(dictionary=True)
+                query = """
+                    SELECT v.*,
+                           CONCAT(p.First_Name, ' ', p.Last_Name) as Patient_Name,
+                           CONCAT('Dr. ', d.First_Name, ' ', d.Last_Name) as Doctor_Name
+                    FROM Visit v
+                    JOIN Patient p ON v.Patient_ID = p.Patient_ID
+                    JOIN Doctor d ON v.Doctor_ID = d.Doctor_ID
+                """
+                cursor.execute(query)
+                visits = cursor.fetchall()
+                if visits:
+                    df = pd.DataFrame(visits)
+                    st.dataframe(df)
+            finally:
+                conn.close()
 
     with tab2:
         with st.form("add_visit"):
             visit_id = st.number_input("Visit ID", min_value=1)
-            patient_id = st.number_input("Patient ID", min_value=1)
-            doctor_id = st.number_input("Doctor ID", min_value=1)
+
+            # Patient dropdown with names
+            selected_patient = st.selectbox(
+                "Select Patient",
+                options=[(p['Patient_ID'], f"{p['Patient_ID']} - {p['First_Name']} {p['Last_Name']}") for p in patients],
+                format_func=lambda x: x[1]
+            )
+            patient_id = selected_patient[0] if selected_patient else None
+
+            # Doctor dropdown with names
+            selected_doctor = st.selectbox(
+                "Select Doctor",
+                options=[(d['Doctor_ID'], f"{d['Doctor_ID']} - Dr. {d['First_Name']} {d['Last_Name']}") for d in doctors],
+                format_func=lambda x: x[1]
+            )
+            doctor_id = selected_doctor[0] if selected_doctor else None
+
             visit_date = st.date_input("Visit Date")
             visit_details = st.text_area("Visit Details")
 
             if st.form_submit_button("Add Visit"):
                 conn = create_connection()
-                if conn:
+                if conn and patient_id and doctor_id:
                     try:
                         cursor = conn.cursor()
                         query = """
@@ -370,46 +409,93 @@ def visit_page():
 
     with tab3:
         st.subheader("Update Visit")
-        visits = fetch_all("Visit")
-        if visits:
-            selected_visit = st.selectbox(
-                "Select Visit to Update",
-                options=[(v['Visit_ID'], f"{v['Patient_ID']} {v['Doctor_ID']}") for v in visits],
-                format_func=lambda x: x[1]
-            )
+        # Fetch visits with joined information
+        conn = create_connection()
+        if conn:
+            try:
+                cursor = conn.cursor(dictionary=True)
+                query = """
+                    SELECT v.*,
+                           CONCAT(p.First_Name, ' ', p.Last_Name) as Patient_Name,
+                           CONCAT('Dr. ', d.First_Name, ' ', d.Last_Name) as Doctor_Name
+                    FROM Visit v
+                    JOIN Patient p ON v.Patient_ID = p.Patient_ID
+                    JOIN Doctor d ON v.Doctor_ID = d.Doctor_ID
+                """
+                cursor.execute(query)
+                visits = cursor.fetchall()
 
-            if selected_visit:
-                current_visit = next(v for v in visits if v['Visit_ID'] == selected_visit[0])
+                if visits:
+                    selected_visit = st.selectbox(
+                        "Select Visit to Update",
+                        options=[(v['Visit_ID'], f"Visit {v['Visit_ID']} - {v['Patient_Name']} with {v['Doctor_Name']}") for v in visits],
+                        format_func=lambda x: x[1]
+                    )
 
-                fields_info = {
-                    'Patient_ID': {'type': 'number', 'min_value': 1},
-                    'Doctor_ID': {'type': 'number', 'min_value': 1},
-                    'Visit_Date': {'type': 'date'},
-                    'Visit_Details': {'type': 'text'},
-                    'Prescription_ID': {'type': 'text'},
-                }
+                    if selected_visit:
+                        current_visit = next(v for v in visits if v['Visit_ID'] == selected_visit[0])
 
-                with st.form("update_visit"):
-                    update_data = create_update_form("Visit", current_visit, fields_info)
+                        with st.form("update_visit"):
+                            # Patient dropdown with current selection
+                            updated_patient = st.selectbox(
+                                "Patient",
+                                options=[(p['Patient_ID'], f"{p['Patient_ID']} - {p['First_Name']} {p['Last_Name']}") for p in patients],
+                                format_func=lambda x: x[1],
+                                index=[i for i, p in enumerate(patients) if p['Patient_ID'] == current_visit['Patient_ID']][0]
+                            )
 
-                    if st.form_submit_button("Update Visit"):
-                        if update_data:
-                            if update_record("Visit", "Visit_ID", selected_visit[0], update_data):
-                                st.success("Visit updated successfully!")
-                                st.rerun()
-                        else:
-                            st.warning("No changes made to update.")
+                            # Doctor dropdown with current selection
+                            updated_doctor = st.selectbox(
+                                "Doctor",
+                                options=[(d['Doctor_ID'], f"{d['Doctor_ID']} - Dr. {d['First_Name']} {d['Last_Name']}") for d in doctors],
+                                format_func=lambda x: x[1],
+                                index=[i for i, d in enumerate(doctors) if d['Doctor_ID'] == current_visit['Doctor_ID']][0]
+                            )
+
+                            updated_date = st.date_input("Visit Date", value=current_visit['Visit_Date'])
+                            updated_details = st.text_area("Visit Details", value=current_visit['Visit_Details'])
+
+                            if st.form_submit_button("Update Visit"):
+                                update_data = {
+                                    'Patient_ID': updated_patient[0],
+                                    'Doctor_ID': updated_doctor[0],
+                                    'Visit_Date': updated_date,
+                                    'Visit_Details': updated_details
+                                }
+
+                                if update_record("Visit", "Visit_ID", selected_visit[0], update_data):
+                                    st.success("Visit updated successfully!")
+                                    st.rerun()
+            finally:
+                conn.close()
 
     with tab4:
-        visits = fetch_all("Visit")
-        if visits:
-            visit_to_delete = st.selectbox(
-                "Select Visit to Delete",
-                options=[(v['Visit_ID'], f"Visit {v['Visit_ID']} - Patient {v['Patient_ID']}") for v in visits],
-                format_func=lambda x: x[1]
-            )
-            if st.button("Delete Visit"):
-                delete_record("Visit", "Visit_ID", visit_to_delete[0])
+        # Fetch visits with joined information for delete
+        conn = create_connection()
+        if conn:
+            try:
+                cursor = conn.cursor(dictionary=True)
+                query = """
+                    SELECT v.*,
+                           CONCAT(p.First_Name, ' ', p.Last_Name) as Patient_Name,
+                           CONCAT('Dr. ', d.First_Name, ' ', d.Last_Name) as Doctor_Name
+                    FROM Visit v
+                    JOIN Patient p ON v.Patient_ID = p.Patient_ID
+                    JOIN Doctor d ON v.Doctor_ID = d.Doctor_ID
+                """
+                cursor.execute(query)
+                visits = cursor.fetchall()
+
+                if visits:
+                    visit_to_delete = st.selectbox(
+                        "Select Visit to Delete",
+                        options=[(v['Visit_ID'], f"Visit {v['Visit_ID']} - {v['Patient_Name']} with {v['Doctor_Name']}") for v in visits],
+                        format_func=lambda x: x[1]
+                    )
+                    if st.button("Delete Visit"):
+                        delete_record("Visit", "Visit_ID", visit_to_delete[0])
+            finally:
+                conn.close()
 
 def laboratory_page():
     st.title("Laboratory Management")
@@ -454,7 +540,7 @@ def laboratory_page():
         if labs:
             selected_lab = st.selectbox(
                 "Select Laboratory to Update",
-                options=[(l['Lab_ID'], l['Name']) for l in labs],
+                options=[(l['Lab_ID'], f"{l['Lab_ID']} - {l['Name']}") for l in labs],
                 format_func=lambda x: x[1]
             )
 
@@ -484,7 +570,7 @@ def laboratory_page():
         if labs:
             lab_to_delete = st.selectbox(
                 "Select Laboratory to Delete",
-                options=[(l['Lab_ID'], l['Name']) for l in labs],
+                options=[(l['Lab_ID'], f"{l['Lab_ID']} - {l['Name']}") for l in labs],
                 format_func=lambda x: x[1]
             )
             if st.button("Delete Laboratory"):
@@ -533,7 +619,7 @@ def manufacturer_page():
         if manufacturers:
             selected_manufacturer = st.selectbox(
                 "Select Manufacturer to Update",
-                options=[(m['Manufacturer_ID'], m['Name']) for m in manufacturers],
+                options=[(m['Manufacturer_ID'], f"{m['Manufacturer_ID']} - {m['Name']}") for m in manufacturers],
                 format_func=lambda x: x[1]
             )
 
@@ -563,7 +649,7 @@ def manufacturer_page():
         if manufacturers:
             manufacturer_to_delete = st.selectbox(
                 "Select Manufacturer to Delete",
-                options=[(m['Manufacturer_ID'], m['Name']) for m in manufacturers],
+                options=[(m['Manufacturer_ID'], f"{m['Manufacturer_ID']} - {m['Name']}") for m in manufacturers],
                 format_func=lambda x: x[1]
             )
             if st.button("Delete Manufacturer"):
@@ -615,7 +701,7 @@ def medication_page():
         if medications:
             selected_medication = st.selectbox(
                 "Select Medication to Update",
-                options=[(m['Medication_ID'], m['Name']) for m in medications],
+                options=[(m['Medication_ID'], f"{m['Medication_ID']} - {m['Name']}") for m in medications],
                 format_func=lambda x: x[1]
             )
 
@@ -647,7 +733,7 @@ def medication_page():
         if medications:
             medication_to_delete = st.selectbox(
                 "Select Medication to Delete",
-                options=[(m['Medication_ID'], m['Name']) for m in medications],
+                options=[(m['Medication_ID'], f"{m['Medication_ID']} - {m['Name']}") for m in medications],
                 format_func=lambda x: x[1]
             )
             if st.button("Delete Medication"):
@@ -671,7 +757,7 @@ def clinical_trial_page():
         if trials:
             selected_trial = st.selectbox(
                 "Select Trial to View Details",
-                options=[(t["Trial_ID"], t["Trial_Name"]) for t in trials],
+                options=[(t["Trial_ID"], f"{t['Trial_ID']} - {t['Trial_Name']}") for t in trials],
                 format_func=lambda x: f"{x[0]} - {x[1]}"
             )
 
@@ -761,7 +847,7 @@ def clinical_trial_page():
         if trials:
             selected_trial = st.selectbox(
                 "Select Clinical Trial to Update",
-                options=[(t['Trial_ID'], t['Trial_Name']) for t in trials],
+                options=[(t['Trial_ID'], f"{t['Trial_ID']} - {t['Trial_Name']}") for t in trials],
                 format_func=lambda x: x[1]
             )
 
@@ -794,7 +880,7 @@ def clinical_trial_page():
         if trials:
             trial_to_delete = st.selectbox(
                 "Select Clinical Trial to Delete",
-                options=[(t['Trial_ID'], t['Trial_Name']) for t in trials],
+                options=[(t['Trial_ID'], f"{t['Trial_ID']} - {t['Trial_Name']}") for t in trials],
                 format_func=lambda x: x[1]
             )
             if st.button("Delete Clinical Trial"):

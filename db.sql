@@ -30,6 +30,7 @@ CREATE TABLE Doctor (
     Lab_ID INT,
     FOREIGN KEY (Lab_ID) REFERENCES Laboratory(Lab_ID)
 );
+
 CREATE TABLE Visit (
     Visit_ID INT PRIMARY KEY,
     Patient_ID INT,
