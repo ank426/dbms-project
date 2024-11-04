@@ -51,6 +51,23 @@ def delete_record(table_name, id_column, id_value):
         finally:
             conn.close()
 
+def get_trial_information(trial_id):
+    conn = create_connection()
+    if conn:
+        try:
+            cursor = conn.cursor(dictionary=True)
+            cursor.callproc("GetTrialInformation", [trial_id])
+            results = []
+            for result in cursor.stored_results():
+                results.extend(result.fetchall())
+            return results
+        except Error as e:
+            st.error(f"Error fetching trial information: {e}")
+            return None
+        finally:
+            conn.close()
+    return None
+
 def patient_page():
     st.title("Patient Management")
 
@@ -366,65 +383,60 @@ def clinical_trial_page():
     with tab2:
         st.subheader("Trial Information")
         trials = fetch_all("Clinical_Trial")
+
         if trials:
             selected_trial = st.selectbox(
                 "Select Trial to View Details",
-                options=[(t['Trial_ID'], t['Trial_Name']) for t in trials],
+                options=[(t["Trial_ID"], t["Trial_Name"]) for t in trials],
                 format_func=lambda x: f"{x[0]} - {x[1]}"
             )
 
             if selected_trial:
-                try:
-                    response = requests.get(f"http://localhost:5000/api/trial_information/{selected_trial[0]}")
-                    if response.status_code == 200:
-                        trial_data = response.json()['data']
-                        if trial_data:
-                            trial_info = trial_data[0]
+                trial_data = get_trial_information(selected_trial[0])
+                
+                if trial_data and len(trial_data) > 0:
+                    trial_info = trial_data[0]
 
-                            col1, col2 = st.columns(2)
+                    col1, col2 = st.columns(2)
 
-                            with col1:
-                                with st.expander("Trial Information", expanded=True):
-                                    st.write("**Trial ID:**", trial_info['Trial_ID'])
-                                    st.write("**Trial Name:**", trial_info['Trial_Name'])
-                                    st.write("**Description:**", trial_info['Description'])
-                                    st.write("**Start Date:**", trial_info['Trial_Start_Date'])
-                                    st.write("**End Date:**", trial_info['Trial_End_Date'])
+                    with col1:
+                        with st.expander("Trial Information", expanded=True):
+                            st.write("**Trial ID:**", trial_info['Trial_ID'])
+                            st.write("**Trial Name:**", trial_info['Trial_Name'])
+                            st.write("**Description:**", trial_info['Description'])
+                            st.write("**Start Date:**", trial_info['Trial_Start_Date'])
+                            st.write("**End Date:**", trial_info['Trial_End_Date'])
 
-                                with st.expander("Patient Information", expanded=True):
-                                    st.write("**Patient ID:**", trial_info['Patient_ID'])
-                                    st.write("**Patient Name:**",
-                                           f"{trial_info['Patient_First_Name']} {trial_info['Patient_Last_Name']}")
+                        with st.expander("Patient Information", expanded=True):
+                            st.write("**Patient ID:**", trial_info['Patient_ID'])
+                            st.write("**Patient Name:**",
+                                   f"{trial_info['Patient_First_Name']} {trial_info['Patient_Last_Name']}")
 
-                            with col2:
-                                with st.expander("Doctor Information", expanded=True):
-                                    st.write("**Doctor ID:**", trial_info['Doctor_ID'])
-                                    st.write("**Doctor Name:**",
-                                           f"{trial_info['Doctor_First_Name']} {trial_info['Doctor_Last_Name']}")
-                                    st.write("**Specialization:**", trial_info['Specialization'])
+                    with col2:
+                        with st.expander("Doctor Information", expanded=True):
+                            st.write("**Doctor ID:**", trial_info['Doctor_ID'])
+                            st.write("**Doctor Name:**",
+                                   f"{trial_info['Doctor_First_Name']} {trial_info['Doctor_Last_Name']}")
+                            st.write("**Specialization:**", trial_info['Specialization'])
 
-                                with st.expander("Medication Information", expanded=True):
-                                    st.write("**Medication ID:**", trial_info['Medication_ID'])
-                                    st.write("**Medication Name:**", trial_info['Medication_Name'])
-                                    st.write("**Dosage:**", trial_info['Dosage'])
-                                    st.write("**Administration Method:**", trial_info['Administration_Method'])
-                                    st.write("**Side Effects:**", trial_info['Side_Effects'])
+                        with st.expander("Medication Information", expanded=True):
+                            st.write("**Medication ID:**", trial_info['Medication_ID'])
+                            st.write("**Medication Name:**", trial_info['Medication_Name'])
+                            st.write("**Dosage:**", trial_info['Dosage'])
+                            st.write("**Administration Method:**", trial_info['Administration_Method'])
+                            st.write("**Side Effects:**", trial_info['Side_Effects'])
 
-                            with st.expander("Results Information", expanded=True):
-                                if trial_info['Result_ID']:
-                                    st.write("**Result ID:**", trial_info['Result_ID'])
-                                    st.write("**Result Date:**", trial_info['Result_Date'])
-                                    st.write("**Result Details:**", trial_info['Result_Details'])
-                                    st.write("**Laboratory ID:**", trial_info['Lab_ID'])
-                                    st.write("**Laboratory Name:**", trial_info['Lab_Name'])
-                                else:
-                                    st.info("No results recorded for this trial yet.")
+                    with st.expander("Results Information", expanded=True):
+                        if trial_info['Result_ID']:
+                            st.write("**Result ID:**", trial_info['Result_ID'])
+                            st.write("**Result Date:**", trial_info['Result_Date'])
+                            st.write("**Result Details:**", trial_info['Result_Details'])
+                            st.write("**Laboratory ID:**", trial_info['Lab_ID'])
+                            st.write("**Laboratory Name:**", trial_info['Lab_Name'])
                         else:
-                            st.warning("No detailed information found for this trial.")
-                    else:
-                        st.error("Failed to fetch trial information. {response}")
-                except requests.exceptions.RequestException as e:
-                    st.error(f"Error connecting to the backend: {str(e)}")
+                            st.info("No results recorded for this trial yet.")
+                else:
+                    st.warning("No detailed information found for this trial.")
         else:
             st.info("No trials available to view.")
 
