@@ -1,6 +1,5 @@
 import streamlit as st
 import mysql.connector
-import requests
 from mysql.connector import Error
 import pandas as pd
 
@@ -393,7 +392,7 @@ def clinical_trial_page():
 
             if selected_trial:
                 trial_data = get_trial_information(selected_trial[0])
-                
+
                 if trial_data and len(trial_data) > 0:
                     trial_info = trial_data[0]
 
