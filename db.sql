@@ -1,7 +1,7 @@
 CREATE TABLE Patient (
     Patient_ID INT PRIMARY KEY,
-    First_Name VARCHAR(100),
-    Last_Name VARCHAR(100),
+    First_Name VARCHAR(100) NOT NULL CHECK (First_Name <> ''),
+    Last_Name VARCHAR(100) NOT NULL CHECK (Last_Name <> ''),
     Age INT CHECK (Age >= 18),
     Gender VARCHAR(10),
     Date_of_Birth DATE,
@@ -14,7 +14,7 @@ CREATE TABLE Patient (
 
 CREATE TABLE Laboratory (
     Lab_ID INT PRIMARY KEY,
-    Name VARCHAR(255),
+    Name VARCHAR(255) NOT NULL CHECK (Name <> ''),
     Location VARCHAR(255),
     Contact_Number VARCHAR(15),
     Email VARCHAR(100)
@@ -22,8 +22,8 @@ CREATE TABLE Laboratory (
 
 CREATE TABLE Doctor (
     Doctor_ID INT PRIMARY KEY,
-    First_Name VARCHAR(100),
-    Last_Name VARCHAR(100),
+    First_Name VARCHAR(100) NOT NULL CHECK (First_Name <> ''),
+    Last_Name VARCHAR(100) NOT NULL CHECK (Last_Name <> ''),
     Specialization VARCHAR(100),
     Contact_Number VARCHAR(15),
     Email VARCHAR(100),
@@ -56,7 +56,7 @@ DELIMITER ;
 
 CREATE TABLE Manufacturer (
     Manufacturer_ID INT PRIMARY KEY,
-    Name VARCHAR(100),
+    Name VARCHAR(100) NOT NULL CHECK (Name <> ''),
     Email VARCHAR(100),
     Contact_Number VARCHAR(15),
     Address VARCHAR(255)
@@ -64,7 +64,7 @@ CREATE TABLE Manufacturer (
 
 CREATE TABLE Medication (
     Medication_ID INT PRIMARY KEY,
-    Name VARCHAR(100),
+    Name VARCHAR(100) NOT NULL CHECK (Name <> ''),
     Manufacturer_ID INT,
     Dosage VARCHAR(50),
     Side_Effects VARCHAR(255),
@@ -76,7 +76,7 @@ CREATE TABLE Medication (
 
 CREATE TABLE Clinical_Trial (
     Trial_ID INT PRIMARY KEY,
-    Trial_Name VARCHAR(255),
+    Trial_Name VARCHAR(255) NOT NULL CHECK (Trial_Name <> ''),
     Description TEXT,
     Trial_Start_Date DATE,
     Trial_End_Date DATE,

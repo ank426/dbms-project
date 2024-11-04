@@ -50,6 +50,95 @@ def delete_record(table_name, id_column, id_value):
         finally:
             conn.close()
 
+def update_record(table_name, id_column, record_id, update_dict):
+    """
+    Generic function to update a record in any table
+
+    Args:
+        table_name (str): Name of the table to update
+        id_column (str): Name of the ID column
+        record_id (int): ID of the record to update
+        update_dict (dict): Dictionary of column names and new values
+    """
+    if not update_dict:
+        return False
+
+    conn = create_connection()
+    if conn:
+        try:
+            cursor = conn.cursor()
+
+            # Build SET clause dynamically from update_dict
+            set_clause = ", ".join([f"{key} = %s" for key in update_dict.keys()])
+            values = list(update_dict.values()) + [record_id]  # Add ID at the end for WHERE clause
+
+            query = f"""
+            UPDATE {table_name}
+            SET {set_clause}
+            WHERE {id_column} = %s
+            """
+
+            cursor.execute(query, values)
+            conn.commit()
+            return True
+        except Error as e:
+            st.error(f"Error updating record: {e}")
+            return False
+        finally:
+            conn.close()
+    return False
+
+# Add this function to each page's tab section
+def create_update_form(table_name, record_data, fields_info):
+    """
+    Creates a dynamic update form based on field information
+
+    Args:
+        table_name (str): Name of the table
+        record_data (dict): Current record data
+        fields_info (dict): Dictionary defining field types and options
+    """
+    update_data = {}
+
+    for field, field_info in fields_info.items():
+        field_type = field_info.get('type', 'text')
+        current_value = record_data.get(field)
+
+        if field_type == 'number':
+            min_value = field_info.get('min_value', 0)
+            new_value = st.number_input(
+                field.replace('_', ' ').title(),
+                min_value=min_value,
+                value=current_value if current_value else min_value
+            )
+        elif field_type == 'date':
+            new_value = st.date_input(
+                field.replace('_', ' ').title(),
+                value=current_value if current_value else None
+            )
+        elif field_type == 'select':
+            options = field_info.get('options', [])
+            new_value = st.selectbox(
+                field.replace('_', ' ').title(),
+                options=options,
+                index=options.index(current_value) if current_value in options else 0
+            )
+        elif field_type == 'textarea':
+            new_value = st.text_area(
+                field.replace('_', ' ').title(),
+                value=current_value if current_value else ''
+            )
+        else:  # Default to text input
+            new_value = st.text_input(
+                field.replace('_', ' ').title(),
+                value=current_value if current_value else ''
+            )
+
+        if new_value != current_value and new_value != '':
+            update_data[field] = new_value
+
+    return update_data
+
 def get_trial_information(trial_id):
     conn = create_connection()
     if conn:
@@ -70,7 +159,7 @@ def get_trial_information(trial_id):
 def patient_page():
     st.title("Patient Management")
 
-    tab1, tab2, tab3 = st.tabs(["View Patients", "Add Patient", "Delete Patient"])
+    tab1, tab2, tab3, tab4 = st.tabs(["View Patients", "Add Patient", "Update Patien", "Delete Patient"])
 
     with tab1:
         patients = fetch_all("Patient")
@@ -111,6 +200,42 @@ def patient_page():
                         conn.close()
 
     with tab3:
+        st.subheader("Update Patient")
+        patients = fetch_all("Patient")
+        if patients:
+            selected_patient = st.selectbox(
+                "Select Patient to Update",
+                options=[(p['Patient_ID'], f"{p['First_Name']} {p['Last_Name']}") for p in patients],
+                format_func=lambda x: x[1]
+            )
+
+            if selected_patient:
+                current_patient = next(p for p in patients if p['Patient_ID'] == selected_patient[0])
+
+                fields_info = {
+                    'First_Name': {'type': 'text'},
+                    'Last_Name': {'type': 'text'},
+                    'Age': {'type': 'number', 'min_value': 18},
+                    'Gender': {'type': 'select', 'options': ['Male', 'Female', 'Other']},
+                    'Date_of_Birth': {'type': 'date'},
+                    'Contact_Number': {'type': 'text'},
+                    'Email': {'type': 'text'},
+                    'Address': {'type': 'textarea'},
+                    'Medical_History': {'type': 'textarea'}
+                }
+
+                with st.form("update_patient"):
+                    update_data = create_update_form("Patient", current_patient, fields_info)
+
+                    if st.form_submit_button("Update Patient"):
+                        if update_data:
+                            if update_record("Patient", "Patient_ID", selected_patient[0], update_data):
+                                st.success("Patient updated successfully!")
+                                st.rerun()
+                        else:
+                            st.warning("No changes made to update.")
+
+    with tab4:
         patients = fetch_all("Patient")
         if patients:
             patient_to_delete = st.selectbox(
@@ -124,7 +249,7 @@ def patient_page():
 def doctor_page():
     st.title("Doctor Management")
 
-    tab1, tab2, tab3 = st.tabs(["View Doctors", "Add Doctor", "Delete Doctor"])
+    tab1, tab2, tab3, tab4 = st.tabs(["View Doctors", "Add Doctor", "Update Doctor", "Delete Doctor"])
 
     with tab1:
         doctors = fetch_all("Doctor")
@@ -162,6 +287,39 @@ def doctor_page():
                         conn.close()
 
     with tab3:
+        st.subheader("Update Doctor")
+        doctors = fetch_all("Doctor")
+        if doctors:
+            selected_doctor = st.selectbox(
+                "Select Doctor to Update",
+                options=[(d['Doctor_ID'], f"{d['First_Name']} {d['Last_Name']}") for d in doctors],
+                format_func=lambda x: x[1]
+            )
+
+            if selected_doctor:
+                current_doctor = next(d for d in doctors if d['Doctor_ID'] == selected_doctor[0])
+
+                fields_info = {
+                    'First_Name': {'type': 'text'},
+                    'Last_Name': {'type': 'text'},
+                    'Specialization': {'type': 'text'},
+                    'Contact_Number': {'type': 'text'},
+                    'Email': {'type': 'text'},
+                    'Lab_ID': {'type': 'number', 'min_value': 1}
+                }
+
+                with st.form("update_doctor"):
+                    update_data = create_update_form("Doctor", current_doctor, fields_info)
+
+                    if st.form_submit_button("Update Doctor"):
+                        if update_data:
+                            if update_record("Doctor", "Doctor_ID", selected_doctor[0], update_data):
+                                st.success("Doctor updated successfully!")
+                                st.rerun()
+                        else:
+                            st.warning("No changes made to update.")
+
+    with tab4:
         doctors = fetch_all("Doctor")
         if doctors:
             doctor_to_delete = st.selectbox(
@@ -175,7 +333,7 @@ def doctor_page():
 def visit_page():
     st.title("Visit Management")
 
-    tab1, tab2, tab3 = st.tabs(["View Visits", "Add Visit", "Delete Visit"])
+    tab1, tab2, tab3, tab4 = st.tabs(["View Visits", "Add Visit", "Update Visit", "Delete Visit"])
 
     with tab1:
         visits = fetch_all("Visit")
@@ -211,6 +369,38 @@ def visit_page():
                         conn.close()
 
     with tab3:
+        st.subheader("Update Visit")
+        visits = fetch_all("Visit")
+        if visits:
+            selected_visit = st.selectbox(
+                "Select Visit to Update",
+                options=[(v['Visit_ID'], f"{v['Patient_ID']} {v['Doctor_ID']}") for v in visits],
+                format_func=lambda x: x[1]
+            )
+
+            if selected_visit:
+                current_visit = next(v for v in visits if v['Visit_ID'] == selected_visit[0])
+
+                fields_info = {
+                    'Patient_ID': {'type': 'number', 'min_value': 1},
+                    'Doctor_ID': {'type': 'number', 'min_value': 1},
+                    'Visit_Date': {'type': 'date'},
+                    'Visit_Details': {'type': 'text'},
+                    'Prescription_ID': {'type': 'text'},
+                }
+
+                with st.form("update_visit"):
+                    update_data = create_update_form("Visit", current_visit, fields_info)
+
+                    if st.form_submit_button("Update Visit"):
+                        if update_data:
+                            if update_record("Visit", "Visit_ID", selected_visit[0], update_data):
+                                st.success("Visit updated successfully!")
+                                st.rerun()
+                        else:
+                            st.warning("No changes made to update.")
+
+    with tab4:
         visits = fetch_all("Visit")
         if visits:
             visit_to_delete = st.selectbox(
@@ -224,7 +414,7 @@ def visit_page():
 def laboratory_page():
     st.title("Laboratory Management")
 
-    tab1, tab2, tab3 = st.tabs(["View Laboratories", "Add Laboratory", "Delete Laboratory"])
+    tab1, tab2, tab3, tab4 = st.tabs(["View Laboratories", "Add Laboratory", "Update Laboratory", "Delete Laboratory"])
 
     with tab1:
         labs = fetch_all("Laboratory")
@@ -259,6 +449,37 @@ def laboratory_page():
                         conn.close()
 
     with tab3:
+        st.subheader("Update Laboratory")
+        labs = fetch_all("Laboratory")
+        if labs:
+            selected_lab = st.selectbox(
+                "Select Laboratory to Update",
+                options=[(l['Lab_ID'], l['Name']) for l in labs],
+                format_func=lambda x: x[1]
+            )
+
+            if selected_lab:
+                current_lab = next(l for l in labs if l['Lab_ID'] == selected_lab[0])
+
+                fields_info = {
+                    'Name': {'type': 'text'},
+                    'Location': {'type': 'text'},
+                    'Contact_Number': {'type': 'text'},
+                    'Email': {'type': 'text'}
+                }
+
+                with st.form("update_laboratory"):
+                    update_data = create_update_form("Laboratory", current_lab, fields_info)
+
+                    if st.form_submit_button("Update Laboratory"):
+                        if update_data:
+                            if update_record("Laboratory", "Lab_ID", selected_lab[0], update_data):
+                                st.success("Laboratory updated successfully!")
+                                st.rerun()
+                        else:
+                            st.warning("No changes made to update.")
+
+    with tab4:
         labs = fetch_all("Laboratory")
         if labs:
             lab_to_delete = st.selectbox(
@@ -272,7 +493,7 @@ def laboratory_page():
 def manufacturer_page():
     st.title("Manufacturer Management")
 
-    tab1, tab2, tab3 = st.tabs(["View Manufacturers", "Add Manufacturer", "Delete Manufacturer"])
+    tab1, tab2, tab3, tab4 = st.tabs(["View Manufacturers", "Add Manufacturer", "Update Manufacturer", "Delete Manufacturer"])
 
     with tab1:
         manufacturers = fetch_all("Manufacturer")
@@ -307,6 +528,37 @@ def manufacturer_page():
                         conn.close()
 
     with tab3:
+        st.subheader("Update Manufacturer")
+        manufacturers = fetch_all("Manufacturer")
+        if manufacturers:
+            selected_manufacturer = st.selectbox(
+                "Select Manufacturer to Update",
+                options=[(m['Manufacturer_ID'], m['Name']) for m in manufacturers],
+                format_func=lambda x: x[1]
+            )
+
+            if selected_manufacturer:
+                current_manufacturer = next(m for m in manufacturers if m['Manufacturer_ID'] == selected_manufacturer[0])
+
+                fields_info = {
+                    'Name': {'type': 'text'},
+                    'Email': {'type': 'text'},
+                    'Contact_Number': {'type': 'text'},
+                    'Address': {'type': 'textarea'}
+                }
+
+                with st.form("update_manufacturer"):
+                    update_data = create_update_form("Manufacturer", current_manufacturer, fields_info)
+
+                    if st.form_submit_button("Update Manufacturer"):
+                        if update_data:
+                            if update_record("Manufacturer", "Manufacturer_ID", selected_manufacturer[0], update_data):
+                                st.success("Manufacturer updated successfully!")
+                                st.rerun()
+                        else:
+                            st.warning("No changes made to update.")
+
+    with tab4:
         manufacturers = fetch_all("Manufacturer")
         if manufacturers:
             manufacturer_to_delete = st.selectbox(
@@ -320,7 +572,7 @@ def manufacturer_page():
 def medication_page():
     st.title("Medication Management")
 
-    tab1, tab2, tab3 = st.tabs(["View Medications", "Add Medication", "Delete Medication"])
+    tab1, tab2, tab3, tab4 = st.tabs(["View Medications", "Add Medication", "Update Medication", "Delete Medication"])
 
     with tab1:
         medications = fetch_all("Medication")
@@ -358,6 +610,39 @@ def medication_page():
                         conn.close()
 
     with tab3:
+        st.subheader("Update Medication")
+        medications = fetch_all("Medication")
+        if medications:
+            selected_medication = st.selectbox(
+                "Select Medication to Update",
+                options=[(m['Medication_ID'], m['Name']) for m in medications],
+                format_func=lambda x: x[1]
+            )
+
+            if selected_medication:
+                current_medication = next(m for m in medications if m['Medication_ID'] == selected_medication[0])
+
+                fields_info = {
+                    'Name': {'type': 'text'},
+                    'Manufacturer_ID': {'type': 'number', 'min_value': 1},
+                    'Dosage': {'type': 'text'},
+                    'Side_Effects': {'type': 'textarea'},
+                    'Frequency': {'type': 'text'},
+                    'Administration_Method': {'type': 'text'}
+                }
+
+                with st.form("update_medication"):
+                    update_data = create_update_form("Medication", current_medication, fields_info)
+
+                    if st.form_submit_button("Update Medication"):
+                        if update_data:
+                            if update_record("Medication", "Medication_ID", selected_medication[0], update_data):
+                                st.success("Medication updated successfully!")
+                                st.rerun()
+                        else:
+                            st.warning("No changes made to update.")
+
+    with tab4:
         medications = fetch_all("Medication")
         if medications:
             medication_to_delete = st.selectbox(
@@ -371,7 +656,7 @@ def medication_page():
 def clinical_trial_page():
     st.title("Clinical Trial Management")
 
-    tab1, tab2, tab3, tab4 = st.tabs(["View Clinical Trials", "Trial Details", "Add Clinical Trial", "Delete Clinical Trial"])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["View Clinical Trials", "Trial Details", "Add Clinical Trial", "Update Clinical Trial", "Delete Clinical Trial"]) # noqa
 
     with tab1:
         trials = fetch_all("Clinical_Trial")
@@ -471,6 +756,40 @@ def clinical_trial_page():
                         conn.close()
 
     with tab4:
+        st.subheader("Update Clinical Trial")
+        trials = fetch_all("Clinical_Trial")
+        if trials:
+            selected_trial = st.selectbox(
+                "Select Clinical Trial to Update",
+                options=[(t['Trial_ID'], t['Trial_Name']) for t in trials],
+                format_func=lambda x: x[1]
+            )
+
+            if selected_trial:
+                current_trial = next(t for t in trials if t['Trial_ID'] == selected_trial[0])
+
+                fields_info = {
+                    'Trial_Name': {'type': 'text'},
+                    'Description': {'type': 'textarea'},
+                    'Trial_Start_Date': {'type': 'date'},
+                    'Trial_End_Date': {'type': 'date'},
+                    'Patient_ID': {'type': 'number', 'min_value': 1},
+                    'Medication_ID': {'type': 'number', 'min_value': 1},
+                    'Doctor_ID': {'type': 'number', 'min_value': 1}
+                }
+
+                with st.form("update_trial"):
+                    update_data = create_update_form("Clinical_Trial", current_trial, fields_info)
+
+                    if st.form_submit_button("Update Clinical Trial"):
+                        if update_data:
+                            if update_record("Clinical_Trial", "Trial_ID", selected_trial[0], update_data):
+                                st.success("Clinical Trial updated successfully!")
+                                st.rerun()
+                        else:
+                            st.warning("No changes made to update.")
+
+    with tab5:
         trials = fetch_all("Clinical_Trial")
         if trials:
             trial_to_delete = st.selectbox(
@@ -484,7 +803,7 @@ def clinical_trial_page():
 def results_page():
     st.title("Results Management")
 
-    tab1, tab2, tab3 = st.tabs(["View Results", "Add Result", "Delete Result"])
+    tab1, tab2, tab3, tab4 = st.tabs(["View Results", "Add Result", "Update Result", "Delete Result"])
 
     with tab1:
         results = fetch_all("Results")
@@ -521,6 +840,38 @@ def results_page():
                         conn.close()
 
     with tab3:
+        st.subheader("Update Result")
+        results = fetch_all("Results")
+        if results:
+            selected_result = st.selectbox(
+                "Select Result to Update",
+                options=[(r['Result_ID'], f"Result {r['Result_ID']} - Trial {r['Trial_ID']}") for r in results],
+                format_func=lambda x: x[1]
+            )
+
+            if selected_result:
+                current_result = next(r for r in results if r['Result_ID'] == selected_result[0])
+
+                fields_info = {
+                    'Trial_ID': {'type': 'number', 'min_value': 1},
+                    'Lab_ID': {'type': 'number', 'min_value': 1},
+                    'Patient_ID': {'type': 'number', 'min_value': 1},
+                    'Result_Date': {'type': 'date'},
+                    'Result_Details': {'type': 'textarea'}
+                }
+
+                with st.form("update_result"):
+                    update_data = create_update_form("Results", current_result, fields_info)
+
+                    if st.form_submit_button("Update Result"):
+                        if update_data:
+                            if update_record("Results", "Result_ID", selected_result[0], update_data):
+                                st.success("Result updated successfully!")
+                                st.rerun()
+                        else:
+                            st.warning("No changes made to update.")
+
+    with tab4:
         results = fetch_all("Results")
         if results:
             result_to_delete = st.selectbox(
@@ -534,7 +885,7 @@ def results_page():
 def reactions_page():
     st.title("Reactions Management")
 
-    tab1, tab2, tab3 = st.tabs(["View Reactions", "Add Reaction", "Delete Reaction"])
+    tab1, tab2, tab3, tab4 = st.tabs(["View Reactions", "Add Reaction", "Update Reaction", "Delete Reaction"])
 
     with tab1:
         reactions = fetch_all("Reactions")
@@ -570,6 +921,37 @@ def reactions_page():
                         conn.close()
 
     with tab3:
+        st.subheader("Update Reaction")
+        reactions = fetch_all("Reactions")
+        if reactions:
+            selected_reaction = st.selectbox(
+                "Select Reaction to Update",
+                options=[(r['Reaction_ID'], f"Reaction {r['Reaction_ID']} - Patient {r['Patient_ID']}") for r in reactions],
+                format_func=lambda x: x[1]
+            )
+
+            if selected_reaction:
+                current_reaction = next(r for r in reactions if r['Reaction_ID'] == selected_reaction[0])
+
+                fields_info = {
+                    'Patient_ID': {'type': 'number', 'min_value': 1},
+                    'Medication_ID': {'type': 'number', 'min_value': 1},
+                    'Reaction_Details': {'type': 'textarea'},
+                    'Date_of_Reaction': {'type': 'date'}
+                }
+
+                with st.form("update_reaction"):
+                    update_data = create_update_form("Reactions", current_reaction, fields_info)
+
+                    if st.form_submit_button("Update Reaction"):
+                        if update_data:
+                            if update_record("Reactions", "Reaction_ID", selected_reaction[0], update_data):
+                                st.success("Reaction updated successfully!")
+                                st.rerun()
+                        else:
+                            st.warning("No changes made to update.")
+
+    with tab4:
         reactions = fetch_all("Reactions")
         if reactions:
             reaction_to_delete = st.selectbox(
