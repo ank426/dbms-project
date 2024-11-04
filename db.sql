@@ -37,7 +37,6 @@ CREATE TABLE Visit (
     Doctor_ID INT,
     Visit_Date DATE,
     Visit_Details VARCHAR(255),
-    Prescription_ID INT,
     FOREIGN KEY (Patient_ID) REFERENCES Patient(Patient_ID),
     FOREIGN KEY (Doctor_ID) REFERENCES Doctor(Doctor_ID)
 );

@@ -159,7 +159,7 @@ def get_trial_information(trial_id):
 def patient_page():
     st.title("Patient Management")
 
-    tab1, tab2, tab3, tab4 = st.tabs(["View Patients", "Add Patient", "Update Patient", "Delete Patient"])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["View Patients", "Add Patient", "Update Patient", "Delete Patient", "Patient Visit Analysis"])
 
     with tab1:
         patients = fetch_all("Patient")
@@ -245,6 +245,76 @@ def patient_page():
             )
             if st.button("Delete Patient"):
                 delete_record("Patient", "Patient_ID", patient_to_delete[0])
+
+    with tab5:
+        st.subheader("Patient Visit Analysis")
+        conn = create_connection()
+        if conn:
+            try:
+                cursor = conn.cursor(dictionary=True)
+                # Complex nested query for visit analysis
+                query = """
+                    SELECT
+                        p.Patient_ID,
+                        p.First_Name,
+                        p.Last_Name,
+                        (
+                            SELECT COUNT(*)
+                            FROM Visit v2
+                            WHERE v2.Patient_ID = p.Patient_ID
+                        ) as visit_count,
+                        (
+                            SELECT AVG(visit_count)
+                            FROM (
+                                SELECT COUNT(*) as visit_count
+                                FROM Visit v3
+                                GROUP BY v3.Patient_ID
+                            ) as avg_visits
+                        ) as avg_patient_visits,
+                        (
+                            SELECT COUNT(DISTINCT Doctor_ID)
+                            FROM Visit v4
+                            WHERE v4.Patient_ID = p.Patient_ID
+                        ) as unique_doctors
+                    FROM Patient p
+                    WHERE EXISTS (
+                        SELECT 1
+                        FROM Visit v6
+                        WHERE v6.Patient_ID = p.Patient_ID
+                    )
+                    ORDER BY visit_count DESC
+                """
+                cursor.execute(query)
+                visit_analysis = cursor.fetchall()
+
+                if visit_analysis:
+                    for patient in visit_analysis:
+                        with st.container():
+                            st.subheader(f"{patient['First_Name']} {patient['Last_Name']}")
+                            col1, col2, col3 = st.columns(3)
+
+                            with col1:
+                                visit_diff = patient['visit_count'] - patient['avg_patient_visits']
+                                st.metric(
+                                    "Total Visits",
+                                    patient['visit_count'],
+                                    f"{visit_diff:+.1f} vs avg",
+                                    delta_color="off" if abs(visit_diff) < 2 else None
+                                )
+
+                            with col2:
+                                st.metric("Average Visits", f"{patient['avg_patient_visits']:.1f}")
+
+                            with col3:
+                                st.metric("Unique Doctors", patient['unique_doctors'])
+
+                            st.divider()
+                else:
+                    st.info("No visit data available for analysis.")
+            except Error as e:
+                st.error(f"Error analyzing visits: {e}")
+            finally:
+                conn.close()
 
 def doctor_page():
     st.title("Doctor Management")
