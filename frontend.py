@@ -319,7 +319,11 @@ def patient_page():
 def doctor_page():
     st.title("Doctor Management")
 
-    tab1, tab2, tab3, tab4 = st.tabs(["View Doctors", "Add Doctor", "Update Doctor", "Delete Doctor"])
+
+    if st.session_state["username"] in ["admin", "doctor"]:
+        tab1, tab2, tab3, tab4 = st.tabs(["View Doctors", "Add Doctor", "Update Doctor", "Delete Doctor"])
+    else:
+        tab1, = st.tabs(["View Doctors"])
 
     with tab1:
         doctors = fetch_all("Doctor")
@@ -327,78 +331,79 @@ def doctor_page():
             df = pd.DataFrame(doctors)
             st.dataframe(df)
 
-    with tab2:
-        with st.form("add_doctor"):
-            doctor_id = st.number_input("Doctor ID", min_value=1)
-            first_name = st.text_input("First Name")
-            last_name = st.text_input("Last Name")
-            specialization = st.text_input("Specialization")
-            contact = st.text_input("Contact Number")
-            email = st.text_input("Email")
-            lab_id = st.number_input("Lab ID", min_value=1)
+    if st.session_state["username"] in ["admin", "doctor"]:
+        with tab2:
+            with st.form("add_doctor"):
+                doctor_id = st.number_input("Doctor ID", min_value=1)
+                first_name = st.text_input("First Name")
+                last_name = st.text_input("Last Name")
+                specialization = st.text_input("Specialization")
+                contact = st.text_input("Contact Number")
+                email = st.text_input("Email")
+                lab_id = st.number_input("Lab ID", min_value=1)
 
-            if st.form_submit_button("Add Doctor"):
-                conn = create_connection()
-                if conn:
-                    try:
-                        cursor = conn.cursor()
-                        query = """
-                                INSERT INTO Doctor (
-                                    Doctor_ID, First_Name, Last_Name, Specialization, Contact_Number, Email, Lab_ID
-                                ) VALUES (%s, %s, %s, %s, %s, %s, %s)
-                                """
-                        cursor.execute(query, (doctor_id, first_name, last_name,
-                                            specialization, contact, email, lab_id))
-                        conn.commit()
-                        st.success("Doctor added successfully!")
-                    except Error as e:
-                        st.error(f"Error adding doctor: {e}")
-                    finally:
-                        conn.close()
+                if st.form_submit_button("Add Doctor"):
+                    conn = create_connection()
+                    if conn:
+                        try:
+                            cursor = conn.cursor()
+                            query = """
+                                    INSERT INTO Doctor (
+                                        Doctor_ID, First_Name, Last_Name, Specialization, Contact_Number, Email, Lab_ID
+                                    ) VALUES (%s, %s, %s, %s, %s, %s, %s)
+                                    """
+                            cursor.execute(query, (doctor_id, first_name, last_name,
+                                                specialization, contact, email, lab_id))
+                            conn.commit()
+                            st.success("Doctor added successfully!")
+                        except Error as e:
+                            st.error(f"Error adding doctor: {e}")
+                        finally:
+                            conn.close()
 
-    with tab3:
-        st.subheader("Update Doctor")
-        doctors = fetch_all("Doctor")
-        if doctors:
-            selected_doctor = st.selectbox(
-                "Select Doctor to Update",
-                options=[(d['Doctor_ID'], f"{d['Doctor_ID']} - {d['First_Name']} {d['Last_Name']}") for d in doctors],
-                format_func=lambda x: x[1]
-            )
+        with tab3:
+            st.subheader("Update Doctor")
+            doctors = fetch_all("Doctor")
+            if doctors:
+                selected_doctor = st.selectbox(
+                    "Select Doctor to Update",
+                    options=[(d['Doctor_ID'], f"{d['Doctor_ID']} - {d['First_Name']} {d['Last_Name']}") for d in doctors],
+                    format_func=lambda x: x[1]
+                )
 
-            if selected_doctor:
-                current_doctor = next(d for d in doctors if d['Doctor_ID'] == selected_doctor[0])
+                if selected_doctor:
+                    current_doctor = next(d for d in doctors if d['Doctor_ID'] == selected_doctor[0])
 
-                fields_info = {
-                    'First_Name': {'type': 'text'},
-                    'Last_Name': {'type': 'text'},
-                    'Specialization': {'type': 'text'},
-                    'Contact_Number': {'type': 'text'},
-                    'Email': {'type': 'text'},
-                    'Lab_ID': {'type': 'number', 'min_value': 1}
-                }
+                    fields_info = {
+                        'First_Name': {'type': 'text'},
+                        'Last_Name': {'type': 'text'},
+                        'Specialization': {'type': 'text'},
+                        'Contact_Number': {'type': 'text'},
+                        'Email': {'type': 'text'},
+                        'Lab_ID': {'type': 'number', 'min_value': 1}
+                    }
 
-                with st.form("update_doctor"):
-                    update_data = create_update_form("Doctor", current_doctor, fields_info)
+                    with st.form("update_doctor"):
+                        update_data = create_update_form("Doctor", current_doctor, fields_info)
 
-                    if st.form_submit_button("Update Doctor"):
-                        if update_data:
-                            if update_record("Doctor", "Doctor_ID", selected_doctor[0], update_data):
-                                st.success("Doctor updated successfully!")
-                                st.rerun()
-                        else:
-                            st.warning("No changes made to update.")
+                        if st.form_submit_button("Update Doctor"):
+                            if update_data:
+                                if update_record("Doctor", "Doctor_ID", selected_doctor[0], update_data):
+                                    st.success("Doctor updated successfully!")
+                                    st.rerun()
+                            else:
+                                st.warning("No changes made to update.")
 
-    with tab4:
-        doctors = fetch_all("Doctor")
-        if doctors:
-            doctor_to_delete = st.selectbox(
-                "Select Doctor to Delete",
-                options=[(d['Doctor_ID'], f"{d['Doctor_ID']} - {d['First_Name']} {d['Last_Name']}") for d in doctors],
-                format_func=lambda x: x[1]
-            )
-            if st.button("Delete Doctor"):
-                delete_record("Doctor", "Doctor_ID", doctor_to_delete[0])
+        with tab4:
+            doctors = fetch_all("Doctor")
+            if doctors:
+                doctor_to_delete = st.selectbox(
+                    "Select Doctor to Delete",
+                    options=[(d['Doctor_ID'], f"{d['Doctor_ID']} - {d['First_Name']} {d['Last_Name']}") for d in doctors],
+                    format_func=lambda x: x[1]
+                )
+                if st.button("Delete Doctor"):
+                    delete_record("Doctor", "Doctor_ID", doctor_to_delete[0])
 
 def visit_page():
     st.title("Visit Management")
@@ -411,7 +416,10 @@ def visit_page():
     # patient_map = {p['Patient_ID']: f"{p['First_Name']} {p['Last_Name']}" for p in patients}
     # doctor_map = {d['Doctor_ID']: f"Dr. {d['First_Name']} {d['Last_Name']}" for d in doctors}
 
-    tab1, tab2, tab3, tab4 = st.tabs(["View Visits", "Add Visit", "Update Visit", "Delete Visit"])
+    if st.session_state["username"] in ["admin", "doctor"]:
+        tab1, tab2, tab3, tab4 = st.tabs(["View Visits", "Add Visit", "Update Visit", "Delete Visit"])
+    else:
+        tab1, = st.tabs(["View Visits"])
 
     with tab1:
         # Fetch visits with joined patient and doctor information
@@ -435,142 +443,146 @@ def visit_page():
             finally:
                 conn.close()
 
-    with tab2:
-        with st.form("add_visit"):
-            visit_id = st.number_input("Visit ID", min_value=1)
+    if st.session_state["username"] in ["admin", "doctor"]:
+        with tab2:
+            with st.form("add_visit"):
+                visit_id = st.number_input("Visit ID", min_value=1)
 
-            # Patient dropdown with names
-            selected_patient = st.selectbox(
-                "Select Patient",
-                options=[(p['Patient_ID'], f"{p['Patient_ID']} - {p['First_Name']} {p['Last_Name']}") for p in patients],
-                format_func=lambda x: x[1]
-            )
-            patient_id = selected_patient[0] if selected_patient else None
+                # Patient dropdown with names
+                selected_patient = st.selectbox(
+                    "Select Patient",
+                    options=[(p['Patient_ID'], f"{p['Patient_ID']} - {p['First_Name']} {p['Last_Name']}") for p in patients],
+                    format_func=lambda x: x[1]
+                )
+                patient_id = selected_patient[0] if selected_patient else None
 
-            # Doctor dropdown with names
-            selected_doctor = st.selectbox(
-                "Select Doctor",
-                options=[(d['Doctor_ID'], f"{d['Doctor_ID']} - Dr. {d['First_Name']} {d['Last_Name']}") for d in doctors],
-                format_func=lambda x: x[1]
-            )
-            doctor_id = selected_doctor[0] if selected_doctor else None
+                # Doctor dropdown with names
+                selected_doctor = st.selectbox(
+                    "Select Doctor",
+                    options=[(d['Doctor_ID'], f"{d['Doctor_ID']} - Dr. {d['First_Name']} {d['Last_Name']}") for d in doctors],
+                    format_func=lambda x: x[1]
+                )
+                doctor_id = selected_doctor[0] if selected_doctor else None
 
-            visit_date = st.date_input("Visit Date")
-            visit_details = st.text_area("Visit Details")
+                visit_date = st.date_input("Visit Date")
+                visit_details = st.text_area("Visit Details")
 
-            if st.form_submit_button("Add Visit"):
-                conn = create_connection()
-                if conn and patient_id and doctor_id:
-                    try:
-                        cursor = conn.cursor()
-                        query = """
-                                INSERT INTO Visit (
-                                    Visit_ID, Patient_ID, Doctor_ID, Visit_Date, Visit_Details
-                                ) VALUES (%s, %s, %s, %s, %s)
-                                """
-                        cursor.execute(query, (visit_id, patient_id, doctor_id,
-                                            visit_date, visit_details))
-                        conn.commit()
-                        st.success("Visit added successfully!")
-                    except Error as e:
-                        st.error(f"Error adding visit: {e}")
-                    finally:
-                        conn.close()
+                if st.form_submit_button("Add Visit"):
+                    conn = create_connection()
+                    if conn and patient_id and doctor_id:
+                        try:
+                            cursor = conn.cursor()
+                            query = """
+                                    INSERT INTO Visit (
+                                        Visit_ID, Patient_ID, Doctor_ID, Visit_Date, Visit_Details
+                                    ) VALUES (%s, %s, %s, %s, %s)
+                                    """
+                            cursor.execute(query, (visit_id, patient_id, doctor_id,
+                                                visit_date, visit_details))
+                            conn.commit()
+                            st.success("Visit added successfully!")
+                        except Error as e:
+                            st.error(f"Error adding visit: {e}")
+                        finally:
+                            conn.close()
 
-    with tab3:
-        st.subheader("Update Visit")
-        # Fetch visits with joined information
-        conn = create_connection()
-        if conn:
-            try:
-                cursor = conn.cursor(dictionary=True)
-                query = """
-                    SELECT v.*,
-                           CONCAT(p.First_Name, ' ', p.Last_Name) as Patient_Name,
-                           CONCAT('Dr. ', d.First_Name, ' ', d.Last_Name) as Doctor_Name
-                    FROM Visit v
-                    JOIN Patient p ON v.Patient_ID = p.Patient_ID
-                    JOIN Doctor d ON v.Doctor_ID = d.Doctor_ID
-                """
-                cursor.execute(query)
-                visits = cursor.fetchall()
+        with tab3:
+            st.subheader("Update Visit")
+            # Fetch visits with joined information
+            conn = create_connection()
+            if conn:
+                try:
+                    cursor = conn.cursor(dictionary=True)
+                    query = """
+                        SELECT v.*,
+                               CONCAT(p.First_Name, ' ', p.Last_Name) as Patient_Name,
+                               CONCAT('Dr. ', d.First_Name, ' ', d.Last_Name) as Doctor_Name
+                        FROM Visit v
+                        JOIN Patient p ON v.Patient_ID = p.Patient_ID
+                        JOIN Doctor d ON v.Doctor_ID = d.Doctor_ID
+                    """
+                    cursor.execute(query)
+                    visits = cursor.fetchall()
 
-                if visits:
-                    selected_visit = st.selectbox(
-                        "Select Visit to Update",
-                        options=[(v['Visit_ID'], f"Visit {v['Visit_ID']} - {v['Patient_Name']} with {v['Doctor_Name']}") for v in visits],
-                        format_func=lambda x: x[1]
-                    )
+                    if visits:
+                        selected_visit = st.selectbox(
+                            "Select Visit to Update",
+                            options=[(v['Visit_ID'], f"Visit {v['Visit_ID']} - {v['Patient_Name']} with {v['Doctor_Name']}") for v in visits],
+                            format_func=lambda x: x[1]
+                        )
 
-                    if selected_visit:
-                        current_visit = next(v for v in visits if v['Visit_ID'] == selected_visit[0])
+                        if selected_visit:
+                            current_visit = next(v for v in visits if v['Visit_ID'] == selected_visit[0])
 
-                        with st.form("update_visit"):
-                            # Patient dropdown with current selection
-                            updated_patient = st.selectbox(
-                                "Patient",
-                                options=[(p['Patient_ID'], f"{p['Patient_ID']} - {p['First_Name']} {p['Last_Name']}") for p in patients],
-                                format_func=lambda x: x[1],
-                                index=[i for i, p in enumerate(patients) if p['Patient_ID'] == current_visit['Patient_ID']][0]
-                            )
+                            with st.form("update_visit"):
+                                # Patient dropdown with current selection
+                                updated_patient = st.selectbox(
+                                    "Patient",
+                                    options=[(p['Patient_ID'], f"{p['Patient_ID']} - {p['First_Name']} {p['Last_Name']}") for p in patients],
+                                    format_func=lambda x: x[1],
+                                    index=[i for i, p in enumerate(patients) if p['Patient_ID'] == current_visit['Patient_ID']][0]
+                                )
 
-                            # Doctor dropdown with current selection
-                            updated_doctor = st.selectbox(
-                                "Doctor",
-                                options=[(d['Doctor_ID'], f"{d['Doctor_ID']} - Dr. {d['First_Name']} {d['Last_Name']}") for d in doctors],
-                                format_func=lambda x: x[1],
-                                index=[i for i, d in enumerate(doctors) if d['Doctor_ID'] == current_visit['Doctor_ID']][0]
-                            )
+                                # Doctor dropdown with current selection
+                                updated_doctor = st.selectbox(
+                                    "Doctor",
+                                    options=[(d['Doctor_ID'], f"{d['Doctor_ID']} - Dr. {d['First_Name']} {d['Last_Name']}") for d in doctors],
+                                    format_func=lambda x: x[1],
+                                    index=[i for i, d in enumerate(doctors) if d['Doctor_ID'] == current_visit['Doctor_ID']][0]
+                                )
 
-                            updated_date = st.date_input("Visit Date", value=current_visit['Visit_Date'])
-                            updated_details = st.text_area("Visit Details", value=current_visit['Visit_Details'])
+                                updated_date = st.date_input("Visit Date", value=current_visit['Visit_Date'])
+                                updated_details = st.text_area("Visit Details", value=current_visit['Visit_Details'])
 
-                            if st.form_submit_button("Update Visit"):
-                                update_data = {
-                                    'Patient_ID': updated_patient[0],
-                                    'Doctor_ID': updated_doctor[0],
-                                    'Visit_Date': updated_date,
-                                    'Visit_Details': updated_details
-                                }
+                                if st.form_submit_button("Update Visit"):
+                                    update_data = {
+                                        'Patient_ID': updated_patient[0],
+                                        'Doctor_ID': updated_doctor[0],
+                                        'Visit_Date': updated_date,
+                                        'Visit_Details': updated_details
+                                    }
 
-                                if update_record("Visit", "Visit_ID", selected_visit[0], update_data):
-                                    st.success("Visit updated successfully!")
-                                    st.rerun()
-            finally:
-                conn.close()
+                                    if update_record("Visit", "Visit_ID", selected_visit[0], update_data):
+                                        st.success("Visit updated successfully!")
+                                        st.rerun()
+                finally:
+                    conn.close()
 
-    with tab4:
-        # Fetch visits with joined information for delete
-        conn = create_connection()
-        if conn:
-            try:
-                cursor = conn.cursor(dictionary=True)
-                query = """
-                    SELECT v.*,
-                           CONCAT(p.First_Name, ' ', p.Last_Name) as Patient_Name,
-                           CONCAT('Dr. ', d.First_Name, ' ', d.Last_Name) as Doctor_Name
-                    FROM Visit v
-                    JOIN Patient p ON v.Patient_ID = p.Patient_ID
-                    JOIN Doctor d ON v.Doctor_ID = d.Doctor_ID
-                """
-                cursor.execute(query)
-                visits = cursor.fetchall()
+        with tab4:
+            # Fetch visits with joined information for delete
+            conn = create_connection()
+            if conn:
+                try:
+                    cursor = conn.cursor(dictionary=True)
+                    query = """
+                        SELECT v.*,
+                               CONCAT(p.First_Name, ' ', p.Last_Name) as Patient_Name,
+                               CONCAT('Dr. ', d.First_Name, ' ', d.Last_Name) as Doctor_Name
+                        FROM Visit v
+                        JOIN Patient p ON v.Patient_ID = p.Patient_ID
+                        JOIN Doctor d ON v.Doctor_ID = d.Doctor_ID
+                    """
+                    cursor.execute(query)
+                    visits = cursor.fetchall()
 
-                if visits:
-                    visit_to_delete = st.selectbox(
-                        "Select Visit to Delete",
-                        options=[(v['Visit_ID'], f"Visit {v['Visit_ID']} - {v['Patient_Name']} with {v['Doctor_Name']}") for v in visits],
-                        format_func=lambda x: x[1]
-                    )
-                    if st.button("Delete Visit"):
-                        delete_record("Visit", "Visit_ID", visit_to_delete[0])
-            finally:
-                conn.close()
+                    if visits:
+                        visit_to_delete = st.selectbox(
+                            "Select Visit to Delete",
+                            options=[(v['Visit_ID'], f"Visit {v['Visit_ID']} - {v['Patient_Name']} with {v['Doctor_Name']}") for v in visits],
+                            format_func=lambda x: x[1]
+                        )
+                        if st.button("Delete Visit"):
+                            delete_record("Visit", "Visit_ID", visit_to_delete[0])
+                finally:
+                    conn.close()
 
 def laboratory_page():
     st.title("Laboratory Management")
 
-    tab1, tab2, tab3, tab4 = st.tabs(["View Laboratories", "Add Laboratory", "Update Laboratory", "Delete Laboratory"])
+    if st.session_state["username"] in ["admin", "lab"]:
+        tab1, tab2, tab3, tab4 = st.tabs(["View Laboratories", "Add Laboratory", "Update Laboratory", "Delete Laboratory"])
+    else:
+        tab1, = st.tabs(["View Laboratories"])
 
     with tab1:
         labs = fetch_all("Laboratory")
@@ -578,78 +590,82 @@ def laboratory_page():
             df = pd.DataFrame(labs)
             st.dataframe(df)
 
-    with tab2:
-        with st.form("add_laboratory"):
-            lab_id = st.number_input("Lab ID", min_value=1)
-            name = st.text_input("Laboratory Name")
-            location = st.text_input("Location")
-            contact = st.text_input("Contact Number")
-            email = st.text_input("Email")
+    if st.session_state["username"] in ["admin", "lab"]:
+        with tab2:
+            with st.form("add_laboratory"):
+                lab_id = st.number_input("Lab ID", min_value=1)
+                name = st.text_input("Laboratory Name")
+                location = st.text_input("Location")
+                contact = st.text_input("Contact Number")
+                email = st.text_input("Email")
 
-            if st.form_submit_button("Add Laboratory"):
-                conn = create_connection()
-                if conn:
-                    try:
-                        cursor = conn.cursor()
-                        query = """
-                        INSERT INTO Laboratory (
-                          Lab_ID, Name, Location, Contact_Number, Email
-                        ) VALUES (%s, %s, %s, %s, %s)
-                        """
-                        cursor.execute(query, (lab_id, name, location, contact, email))
-                        conn.commit()
-                        st.success("Laboratory added successfully!")
-                    except Error as e:
-                        st.error(f"Error adding laboratory: {e}")
-                    finally:
-                        conn.close()
+                if st.form_submit_button("Add Laboratory"):
+                    conn = create_connection()
+                    if conn:
+                        try:
+                            cursor = conn.cursor()
+                            query = """
+                            INSERT INTO Laboratory (
+                              Lab_ID, Name, Location, Contact_Number, Email
+                            ) VALUES (%s, %s, %s, %s, %s)
+                            """
+                            cursor.execute(query, (lab_id, name, location, contact, email))
+                            conn.commit()
+                            st.success("Laboratory added successfully!")
+                        except Error as e:
+                            st.error(f"Error adding laboratory: {e}")
+                        finally:
+                            conn.close()
 
-    with tab3:
-        st.subheader("Update Laboratory")
-        labs = fetch_all("Laboratory")
-        if labs:
-            selected_lab = st.selectbox(
-                "Select Laboratory to Update",
-                options=[(l['Lab_ID'], f"{l['Lab_ID']} - {l['Name']}") for l in labs],
-                format_func=lambda x: x[1]
-            )
+        with tab3:
+            st.subheader("Update Laboratory")
+            labs = fetch_all("Laboratory")
+            if labs:
+                selected_lab = st.selectbox(
+                    "Select Laboratory to Update",
+                    options=[(l['Lab_ID'], f"{l['Lab_ID']} - {l['Name']}") for l in labs],
+                    format_func=lambda x: x[1]
+                )
 
-            if selected_lab:
-                current_lab = next(l for l in labs if l['Lab_ID'] == selected_lab[0])
+                if selected_lab:
+                    current_lab = next(l for l in labs if l['Lab_ID'] == selected_lab[0])
 
-                fields_info = {
-                    'Name': {'type': 'text'},
-                    'Location': {'type': 'text'},
-                    'Contact_Number': {'type': 'text'},
-                    'Email': {'type': 'text'}
-                }
+                    fields_info = {
+                        'Name': {'type': 'text'},
+                        'Location': {'type': 'text'},
+                        'Contact_Number': {'type': 'text'},
+                        'Email': {'type': 'text'}
+                    }
 
-                with st.form("update_laboratory"):
-                    update_data = create_update_form("Laboratory", current_lab, fields_info)
+                    with st.form("update_laboratory"):
+                        update_data = create_update_form("Laboratory", current_lab, fields_info)
 
-                    if st.form_submit_button("Update Laboratory"):
-                        if update_data:
-                            if update_record("Laboratory", "Lab_ID", selected_lab[0], update_data):
-                                st.success("Laboratory updated successfully!")
-                                st.rerun()
-                        else:
-                            st.warning("No changes made to update.")
+                        if st.form_submit_button("Update Laboratory"):
+                            if update_data:
+                                if update_record("Laboratory", "Lab_ID", selected_lab[0], update_data):
+                                    st.success("Laboratory updated successfully!")
+                                    st.rerun()
+                            else:
+                                st.warning("No changes made to update.")
 
-    with tab4:
-        labs = fetch_all("Laboratory")
-        if labs:
-            lab_to_delete = st.selectbox(
-                "Select Laboratory to Delete",
-                options=[(l['Lab_ID'], f"{l['Lab_ID']} - {l['Name']}") for l in labs],
-                format_func=lambda x: x[1]
-            )
-            if st.button("Delete Laboratory"):
-                delete_record("Laboratory", "Lab_ID", lab_to_delete[0])
+        with tab4:
+            labs = fetch_all("Laboratory")
+            if labs:
+                lab_to_delete = st.selectbox(
+                    "Select Laboratory to Delete",
+                    options=[(l['Lab_ID'], f"{l['Lab_ID']} - {l['Name']}") for l in labs],
+                    format_func=lambda x: x[1]
+                )
+                if st.button("Delete Laboratory"):
+                    delete_record("Laboratory", "Lab_ID", lab_to_delete[0])
 
 def manufacturer_page():
     st.title("Manufacturer Management")
 
-    tab1, tab2, tab3, tab4 = st.tabs(["View Manufacturers", "Add Manufacturer", "Update Manufacturer", "Delete Manufacturer"])
+    if st.session_state["username"] in ["admin"]:
+        tab1, tab2, tab3, tab4 = st.tabs(["View Manufacturers", "Add Manufacturer", "Update Manufacturer", "Delete Manufacturer"])
+    else:
+        tab1, = st.tabs(["View Manufacturers"])
 
     with tab1:
         manufacturers = fetch_all("Manufacturer")
@@ -657,78 +673,82 @@ def manufacturer_page():
             df = pd.DataFrame(manufacturers)
             st.dataframe(df)
 
-    with tab2:
-        with st.form("add_manufacturer"):
-            manufacturer_id = st.number_input("Manufacturer ID", min_value=1)
-            name = st.text_input("Manufacturer Name")
-            email = st.text_input("Email")
-            contact = st.text_input("Contact Number")
-            address = st.text_area("Address")
+    if st.session_state["username"] in ["admin"]:
+        with tab2:
+            with st.form("add_manufacturer"):
+                manufacturer_id = st.number_input("Manufacturer ID", min_value=1)
+                name = st.text_input("Manufacturer Name")
+                email = st.text_input("Email")
+                contact = st.text_input("Contact Number")
+                address = st.text_area("Address")
 
-            if st.form_submit_button("Add Manufacturer"):
-                conn = create_connection()
-                if conn:
-                    try:
-                        cursor = conn.cursor()
-                        query = """
-                        INSERT INTO Manufacturer (
-                            Manufacturer_ID, Name, Email, Contact_Number, Address
-                        ) VALUES (%s, %s, %s, %s, %s)
-                        """
-                        cursor.execute(query, (manufacturer_id, name, email, contact, address))
-                        conn.commit()
-                        st.success("Manufacturer added successfully!")
-                    except Error as e:
-                        st.error(f"Error adding manufacturer: {e}")
-                    finally:
-                        conn.close()
+                if st.form_submit_button("Add Manufacturer"):
+                    conn = create_connection()
+                    if conn:
+                        try:
+                            cursor = conn.cursor()
+                            query = """
+                            INSERT INTO Manufacturer (
+                                Manufacturer_ID, Name, Email, Contact_Number, Address
+                            ) VALUES (%s, %s, %s, %s, %s)
+                            """
+                            cursor.execute(query, (manufacturer_id, name, email, contact, address))
+                            conn.commit()
+                            st.success("Manufacturer added successfully!")
+                        except Error as e:
+                            st.error(f"Error adding manufacturer: {e}")
+                        finally:
+                            conn.close()
 
-    with tab3:
-        st.subheader("Update Manufacturer")
-        manufacturers = fetch_all("Manufacturer")
-        if manufacturers:
-            selected_manufacturer = st.selectbox(
-                "Select Manufacturer to Update",
-                options=[(m['Manufacturer_ID'], f"{m['Manufacturer_ID']} - {m['Name']}") for m in manufacturers],
-                format_func=lambda x: x[1]
-            )
+        with tab3:
+            st.subheader("Update Manufacturer")
+            manufacturers = fetch_all("Manufacturer")
+            if manufacturers:
+                selected_manufacturer = st.selectbox(
+                    "Select Manufacturer to Update",
+                    options=[(m['Manufacturer_ID'], f"{m['Manufacturer_ID']} - {m['Name']}") for m in manufacturers],
+                    format_func=lambda x: x[1]
+                )
 
-            if selected_manufacturer:
-                current_manufacturer = next(m for m in manufacturers if m['Manufacturer_ID'] == selected_manufacturer[0])
+                if selected_manufacturer:
+                    current_manufacturer = next(m for m in manufacturers if m['Manufacturer_ID'] == selected_manufacturer[0])
 
-                fields_info = {
-                    'Name': {'type': 'text'},
-                    'Email': {'type': 'text'},
-                    'Contact_Number': {'type': 'text'},
-                    'Address': {'type': 'textarea'}
-                }
+                    fields_info = {
+                        'Name': {'type': 'text'},
+                        'Email': {'type': 'text'},
+                        'Contact_Number': {'type': 'text'},
+                        'Address': {'type': 'textarea'}
+                    }
 
-                with st.form("update_manufacturer"):
-                    update_data = create_update_form("Manufacturer", current_manufacturer, fields_info)
+                    with st.form("update_manufacturer"):
+                        update_data = create_update_form("Manufacturer", current_manufacturer, fields_info)
 
-                    if st.form_submit_button("Update Manufacturer"):
-                        if update_data:
-                            if update_record("Manufacturer", "Manufacturer_ID", selected_manufacturer[0], update_data):
-                                st.success("Manufacturer updated successfully!")
-                                st.rerun()
-                        else:
-                            st.warning("No changes made to update.")
+                        if st.form_submit_button("Update Manufacturer"):
+                            if update_data:
+                                if update_record("Manufacturer", "Manufacturer_ID", selected_manufacturer[0], update_data):
+                                    st.success("Manufacturer updated successfully!")
+                                    st.rerun()
+                            else:
+                                st.warning("No changes made to update.")
 
-    with tab4:
-        manufacturers = fetch_all("Manufacturer")
-        if manufacturers:
-            manufacturer_to_delete = st.selectbox(
-                "Select Manufacturer to Delete",
-                options=[(m['Manufacturer_ID'], f"{m['Manufacturer_ID']} - {m['Name']}") for m in manufacturers],
-                format_func=lambda x: x[1]
-            )
-            if st.button("Delete Manufacturer"):
-                delete_record("Manufacturer", "Manufacturer_ID", manufacturer_to_delete[0])
+        with tab4:
+            manufacturers = fetch_all("Manufacturer")
+            if manufacturers:
+                manufacturer_to_delete = st.selectbox(
+                    "Select Manufacturer to Delete",
+                    options=[(m['Manufacturer_ID'], f"{m['Manufacturer_ID']} - {m['Name']}") for m in manufacturers],
+                    format_func=lambda x: x[1]
+                )
+                if st.button("Delete Manufacturer"):
+                    delete_record("Manufacturer", "Manufacturer_ID", manufacturer_to_delete[0])
 
 def medication_page():
     st.title("Medication Management")
 
-    tab1, tab2, tab3, tab4 = st.tabs(["View Medications", "Add Medication", "Update Medication", "Delete Medication"])
+    if st.session_state["username"] in ["admin"]:
+        tab1, tab2, tab3, tab4 = st.tabs(["View Medications", "Add Medication", "Update Medication", "Delete Medication"])
+    else:
+        tab1, = st.tabs(["View Medications"])
 
     with tab1:
         medications = fetch_all("Medication")
@@ -736,83 +756,87 @@ def medication_page():
             df = pd.DataFrame(medications)
             st.dataframe(df)
 
-    with tab2:
-        with st.form("add_medication"):
-            medication_id = st.number_input("Medication ID", min_value=1)
-            name = st.text_input("Medication Name")
-            manufacturer_id = st.number_input("Manufacturer ID", min_value=1)
-            dosage = st.text_input("Dosage")
-            side_effects = st.text_area("Side Effects")
-            frequency = st.text_input("Frequency")
-            admin_method = st.text_input("Administration Method")
+    if st.session_state["username"] in ["admin"]:
+        with tab2:
+            with st.form("add_medication"):
+                medication_id = st.number_input("Medication ID", min_value=1)
+                name = st.text_input("Medication Name")
+                manufacturer_id = st.number_input("Manufacturer ID", min_value=1)
+                dosage = st.text_input("Dosage")
+                side_effects = st.text_area("Side Effects")
+                frequency = st.text_input("Frequency")
+                admin_method = st.text_input("Administration Method")
 
-            if st.form_submit_button("Add Medication"):
-                conn = create_connection()
-                if conn:
-                    try:
-                        cursor = conn.cursor()
-                        query = """
-                        INSERT INTO Medication (
-                            Medication_ID, Name, Manufacturer_ID, Dosage, Side_Effects, Frequency, Administration_Method
-                        ) VALUES (%s, %s, %s, %s, %s, %s, %s)
-                        """
-                        cursor.execute(query, (medication_id, name, manufacturer_id,
-                                            dosage, side_effects, frequency, admin_method))
-                        conn.commit()
-                        st.success("Medication added successfully!")
-                    except Error as e:
-                        st.error(f"Error adding medication: {e}")
-                    finally:
-                        conn.close()
+                if st.form_submit_button("Add Medication"):
+                    conn = create_connection()
+                    if conn:
+                        try:
+                            cursor = conn.cursor()
+                            query = """
+                            INSERT INTO Medication (
+                                Medication_ID, Name, Manufacturer_ID, Dosage, Side_Effects, Frequency, Administration_Method
+                            ) VALUES (%s, %s, %s, %s, %s, %s, %s)
+                            """
+                            cursor.execute(query, (medication_id, name, manufacturer_id,
+                                                dosage, side_effects, frequency, admin_method))
+                            conn.commit()
+                            st.success("Medication added successfully!")
+                        except Error as e:
+                            st.error(f"Error adding medication: {e}")
+                        finally:
+                            conn.close()
 
-    with tab3:
-        st.subheader("Update Medication")
-        medications = fetch_all("Medication")
-        if medications:
-            selected_medication = st.selectbox(
-                "Select Medication to Update",
-                options=[(m['Medication_ID'], f"{m['Medication_ID']} - {m['Name']}") for m in medications],
-                format_func=lambda x: x[1]
-            )
+        with tab3:
+            st.subheader("Update Medication")
+            medications = fetch_all("Medication")
+            if medications:
+                selected_medication = st.selectbox(
+                    "Select Medication to Update",
+                    options=[(m['Medication_ID'], f"{m['Medication_ID']} - {m['Name']}") for m in medications],
+                    format_func=lambda x: x[1]
+                )
 
-            if selected_medication:
-                current_medication = next(m for m in medications if m['Medication_ID'] == selected_medication[0])
+                if selected_medication:
+                    current_medication = next(m for m in medications if m['Medication_ID'] == selected_medication[0])
 
-                fields_info = {
-                    'Name': {'type': 'text'},
-                    'Manufacturer_ID': {'type': 'number', 'min_value': 1},
-                    'Dosage': {'type': 'text'},
-                    'Side_Effects': {'type': 'textarea'},
-                    'Frequency': {'type': 'text'},
-                    'Administration_Method': {'type': 'text'}
-                }
+                    fields_info = {
+                        'Name': {'type': 'text'},
+                        'Manufacturer_ID': {'type': 'number', 'min_value': 1},
+                        'Dosage': {'type': 'text'},
+                        'Side_Effects': {'type': 'textarea'},
+                        'Frequency': {'type': 'text'},
+                        'Administration_Method': {'type': 'text'}
+                    }
 
-                with st.form("update_medication"):
-                    update_data = create_update_form("Medication", current_medication, fields_info)
+                    with st.form("update_medication"):
+                        update_data = create_update_form("Medication", current_medication, fields_info)
 
-                    if st.form_submit_button("Update Medication"):
-                        if update_data:
-                            if update_record("Medication", "Medication_ID", selected_medication[0], update_data):
-                                st.success("Medication updated successfully!")
-                                st.rerun()
-                        else:
-                            st.warning("No changes made to update.")
+                        if st.form_submit_button("Update Medication"):
+                            if update_data:
+                                if update_record("Medication", "Medication_ID", selected_medication[0], update_data):
+                                    st.success("Medication updated successfully!")
+                                    st.rerun()
+                            else:
+                                st.warning("No changes made to update.")
 
-    with tab4:
-        medications = fetch_all("Medication")
-        if medications:
-            medication_to_delete = st.selectbox(
-                "Select Medication to Delete",
-                options=[(m['Medication_ID'], f"{m['Medication_ID']} - {m['Name']}") for m in medications],
-                format_func=lambda x: x[1]
-            )
-            if st.button("Delete Medication"):
-                delete_record("Medication", "Medication_ID", medication_to_delete[0])
+        with tab4:
+            medications = fetch_all("Medication")
+            if medications:
+                medication_to_delete = st.selectbox(
+                    "Select Medication to Delete",
+                    options=[(m['Medication_ID'], f"{m['Medication_ID']} - {m['Name']}") for m in medications],
+                    format_func=lambda x: x[1]
+                )
+                if st.button("Delete Medication"):
+                    delete_record("Medication", "Medication_ID", medication_to_delete[0])
 
 def clinical_trial_page():
     st.title("Clinical Trial Management")
 
-    tab1, tab2, tab3, tab4, tab5 = st.tabs(["View Clinical Trials", "Trial Details", "Add Clinical Trial", "Update Clinical Trial", "Delete Clinical Trial"]) # noqa
+    if st.session_state["username"] in ["admin"]:
+        tab1, tab2, tab3, tab4, tab5 = st.tabs(["View Clinical Trials", "Trial Details", "Add Clinical Trial", "Update Clinical Trial", "Delete Clinical Trial"]) # noqa
+    else:
+        tab1, tab2 = st.tabs(["View Clinical Trials", "Trial Details"])
 
     with tab1:
         trials = fetch_all("Clinical_Trial")
@@ -880,81 +904,82 @@ def clinical_trial_page():
         else:
             st.info("No trials available to view.")
 
-    with tab3:
-        with st.form("add_clinical_trial"):
-            trial_id = st.number_input("Trial ID", min_value=1)
-            trial_name = st.text_input("Trial Name")
-            description = st.text_area("Description")
-            start_date = st.date_input("Start Date")
-            end_date = st.date_input("End Date")
-            patient_id = st.number_input("Patient ID", min_value=1)
-            medication_id = st.number_input("Medication ID", min_value=1)
-            doctor_id = st.number_input("Doctor ID", min_value=1)
+    if st.session_state["username"] in ["admin"]:
+        with tab3:
+            with st.form("add_clinical_trial"):
+                trial_id = st.number_input("Trial ID", min_value=1)
+                trial_name = st.text_input("Trial Name")
+                description = st.text_area("Description")
+                start_date = st.date_input("Start Date")
+                end_date = st.date_input("End Date")
+                patient_id = st.number_input("Patient ID", min_value=1)
+                medication_id = st.number_input("Medication ID", min_value=1)
+                doctor_id = st.number_input("Doctor ID", min_value=1)
 
-            if st.form_submit_button("Add Clinical Trial"):
-                conn = create_connection()
-                if conn:
-                    try:
-                        cursor = conn.cursor()
-                        query = """
-                        INSERT INTO Clinical_Trial (
-                            Trial_ID, Trial_Name, Description, Trial_Start_Date, Trial_End_Date, Patient_ID, Medication_ID, Doctor_ID
-                        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                        """
-                        cursor.execute(query, (trial_id, trial_name, description,
-                                            start_date, end_date, patient_id,
-                                            medication_id, doctor_id))
-                        conn.commit()
-                        st.success("Clinical Trial added successfully!")
-                    except Error as e:
-                        st.error(f"Error adding clinical trial: {e}")
-                    finally:
-                        conn.close()
+                if st.form_submit_button("Add Clinical Trial"):
+                    conn = create_connection()
+                    if conn:
+                        try:
+                            cursor = conn.cursor()
+                            query = """
+                            INSERT INTO Clinical_Trial (
+                                Trial_ID, Trial_Name, Description, Trial_Start_Date, Trial_End_Date, Patient_ID, Medication_ID, Doctor_ID
+                            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                            """
+                            cursor.execute(query, (trial_id, trial_name, description,
+                                                start_date, end_date, patient_id,
+                                                medication_id, doctor_id))
+                            conn.commit()
+                            st.success("Clinical Trial added successfully!")
+                        except Error as e:
+                            st.error(f"Error adding clinical trial: {e}")
+                        finally:
+                            conn.close()
 
-    with tab4:
-        st.subheader("Update Clinical Trial")
-        trials = fetch_all("Clinical_Trial")
-        if trials:
-            selected_trial = st.selectbox(
-                "Select Clinical Trial to Update",
-                options=[(t['Trial_ID'], f"{t['Trial_ID']} - {t['Trial_Name']}") for t in trials],
-                format_func=lambda x: x[1]
-            )
+        with tab4:
+            st.subheader("Update Clinical Trial")
+            trials = fetch_all("Clinical_Trial")
+            if trials:
+                selected_trial = st.selectbox(
+                    "Select Clinical Trial to Update",
+                    options=[(t['Trial_ID'], f"{t['Trial_ID']} - {t['Trial_Name']}") for t in trials],
+                    format_func=lambda x: x[1]
+                )
 
-            if selected_trial:
-                current_trial = next(t for t in trials if t['Trial_ID'] == selected_trial[0])
+                if selected_trial:
+                    current_trial = next(t for t in trials if t['Trial_ID'] == selected_trial[0])
 
-                fields_info = {
-                    'Trial_Name': {'type': 'text'},
-                    'Description': {'type': 'textarea'},
-                    'Trial_Start_Date': {'type': 'date'},
-                    'Trial_End_Date': {'type': 'date'},
-                    'Patient_ID': {'type': 'number', 'min_value': 1},
-                    'Medication_ID': {'type': 'number', 'min_value': 1},
-                    'Doctor_ID': {'type': 'number', 'min_value': 1}
-                }
+                    fields_info = {
+                        'Trial_Name': {'type': 'text'},
+                        'Description': {'type': 'textarea'},
+                        'Trial_Start_Date': {'type': 'date'},
+                        'Trial_End_Date': {'type': 'date'},
+                        'Patient_ID': {'type': 'number', 'min_value': 1},
+                        'Medication_ID': {'type': 'number', 'min_value': 1},
+                        'Doctor_ID': {'type': 'number', 'min_value': 1}
+                    }
 
-                with st.form("update_trial"):
-                    update_data = create_update_form("Clinical_Trial", current_trial, fields_info)
+                    with st.form("update_trial"):
+                        update_data = create_update_form("Clinical_Trial", current_trial, fields_info)
 
-                    if st.form_submit_button("Update Clinical Trial"):
-                        if update_data:
-                            if update_record("Clinical_Trial", "Trial_ID", selected_trial[0], update_data):
-                                st.success("Clinical Trial updated successfully!")
-                                st.rerun()
-                        else:
-                            st.warning("No changes made to update.")
+                        if st.form_submit_button("Update Clinical Trial"):
+                            if update_data:
+                                if update_record("Clinical_Trial", "Trial_ID", selected_trial[0], update_data):
+                                    st.success("Clinical Trial updated successfully!")
+                                    st.rerun()
+                            else:
+                                st.warning("No changes made to update.")
 
-    with tab5:
-        trials = fetch_all("Clinical_Trial")
-        if trials:
-            trial_to_delete = st.selectbox(
-                "Select Clinical Trial to Delete",
-                options=[(t['Trial_ID'], f"{t['Trial_ID']} - {t['Trial_Name']}") for t in trials],
-                format_func=lambda x: x[1]
-            )
-            if st.button("Delete Clinical Trial"):
-                delete_record("Clinical_Trial", "Trial_ID", trial_to_delete[0])
+        with tab5:
+            trials = fetch_all("Clinical_Trial")
+            if trials:
+                trial_to_delete = st.selectbox(
+                    "Select Clinical Trial to Delete",
+                    options=[(t['Trial_ID'], f"{t['Trial_ID']} - {t['Trial_Name']}") for t in trials],
+                    format_func=lambda x: x[1]
+                )
+                if st.button("Delete Clinical Trial"):
+                    delete_record("Clinical_Trial", "Trial_ID", trial_to_delete[0])
 
 def results_page():
     st.title("Results Management")
@@ -1041,7 +1066,10 @@ def results_page():
 def reactions_page():
     st.title("Reactions Management")
 
-    tab1, tab2, tab3, tab4 = st.tabs(["View Reactions", "Add Reaction", "Update Reaction", "Delete Reaction"])
+    if st.session_state["username"] in ["admin", "doctor"]:
+        tab1, tab2, tab3, tab4 = st.tabs(["View Reactions", "Add Reaction", "Update Reaction", "Delete Reaction"])
+    else:
+        tab1, = st.tabs(["View Reactions"])
 
     with tab1:
         reactions = fetch_all("Reactions")
@@ -1049,123 +1077,162 @@ def reactions_page():
             df = pd.DataFrame(reactions)
             st.dataframe(df)
 
-    with tab2:
-        with st.form("add_reaction"):
-            reaction_id = st.number_input("Reaction ID", min_value=1)
-            patient_id = st.number_input("Patient ID", min_value=1)
-            medication_id = st.number_input("Medication ID", min_value=1)
-            reaction_details = st.text_area("Reaction Details")
-            reaction_date = st.date_input("Date of Reaction")
+    if st.session_state["username"] in ["admin", "doctor"]:
+        with tab2:
+            with st.form("add_reaction"):
+                reaction_id = st.number_input("Reaction ID", min_value=1)
+                patient_id = st.number_input("Patient ID", min_value=1)
+                medication_id = st.number_input("Medication ID", min_value=1)
+                reaction_details = st.text_area("Reaction Details")
+                reaction_date = st.date_input("Date of Reaction")
 
-            if st.form_submit_button("Add Reaction"):
-                conn = create_connection()
-                if conn:
-                    try:
-                        cursor = conn.cursor()
-                        query = """
-                        INSERT INTO Reactions (
-                            Reaction_ID, Patient_ID, Medication_ID, Reaction_Details, Date_of_Reaction
-                        ) VALUES (%s, %s, %s, %s, %s)
-                        """
-                        cursor.execute(query, (reaction_id, patient_id, medication_id,
-                                            reaction_details, reaction_date))
-                        conn.commit()
-                        st.success("Reaction added successfully!")
-                    except Error as e:
-                        st.error(f"Error adding reaction: {e}")
-                    finally:
-                        conn.close()
+                if st.form_submit_button("Add Reaction"):
+                    conn = create_connection()
+                    if conn:
+                        try:
+                            cursor = conn.cursor()
+                            query = """
+                            INSERT INTO Reactions (
+                                Reaction_ID, Patient_ID, Medication_ID, Reaction_Details, Date_of_Reaction
+                            ) VALUES (%s, %s, %s, %s, %s)
+                            """
+                            cursor.execute(query, (reaction_id, patient_id, medication_id,
+                                                reaction_details, reaction_date))
+                            conn.commit()
+                            st.success("Reaction added successfully!")
+                        except Error as e:
+                            st.error(f"Error adding reaction: {e}")
+                        finally:
+                            conn.close()
 
-    with tab3:
-        st.subheader("Update Reaction")
-        reactions = fetch_all("Reactions")
-        if reactions:
-            selected_reaction = st.selectbox(
-                "Select Reaction to Update",
-                options=[(r['Reaction_ID'], f"Reaction {r['Reaction_ID']} - Patient {r['Patient_ID']}") for r in reactions],
-                format_func=lambda x: x[1]
+        with tab3:
+            st.subheader("Update Reaction")
+            reactions = fetch_all("Reactions")
+            if reactions:
+                selected_reaction = st.selectbox(
+                    "Select Reaction to Update",
+                    options=[(r['Reaction_ID'], f"Reaction {r['Reaction_ID']} - Patient {r['Patient_ID']}") for r in reactions],
+                    format_func=lambda x: x[1]
+                )
+
+                if selected_reaction:
+                    current_reaction = next(r for r in reactions if r['Reaction_ID'] == selected_reaction[0])
+
+                    fields_info = {
+                        'Patient_ID': {'type': 'number', 'min_value': 1},
+                        'Medication_ID': {'type': 'number', 'min_value': 1},
+                        'Reaction_Details': {'type': 'textarea'},
+                        'Date_of_Reaction': {'type': 'date'}
+                    }
+
+                    with st.form("update_reaction"):
+                        update_data = create_update_form("Reactions", current_reaction, fields_info)
+
+                        if st.form_submit_button("Update Reaction"):
+                            if update_data:
+                                if update_record("Reactions", "Reaction_ID", selected_reaction[0], update_data):
+                                    st.success("Reaction updated successfully!")
+                                    st.rerun()
+                            else:
+                                st.warning("No changes made to update.")
+
+        with tab4:
+            reactions = fetch_all("Reactions")
+            if reactions:
+                reaction_to_delete = st.selectbox(
+                    "Select Reaction to Delete",
+                    options=[(r['Reaction_ID'], f"Reaction {r['Reaction_ID']} - Patient {r['Patient_ID']}") for r in reactions],
+                    format_func=lambda x: x[1]
+                )
+                if st.button("Delete Reaction"):
+                    delete_record("Reactions", "Reaction_ID", reaction_to_delete[0])
+
+def login_page():
+    st.title("Login")
+
+    # Input fields for login
+    username = st.text_input("Username")
+    password = st.text_input("Password", type="password")
+
+    if st.button("Login"):
+        try:
+            # Try connecting to the database with the provided credentials
+            conn = mysql.connector.connect(
+                host="localhost",
+                user=username,
+                password=password,
+                database="proj",
+                charset="utf8mb4",
+                collation="utf8mb4_general_ci"
             )
 
-            if selected_reaction:
-                current_reaction = next(r for r in reactions if r['Reaction_ID'] == selected_reaction[0])
+            # If connection is successful, credentials are valid
+            if conn.is_connected():
+                st.session_state["logged_in"] = True
+                st.session_state["username"] = username
+                st.success("Logged in successfully")
+                st.rerun()  # Reload the page after login
+            conn.close()
 
-                fields_info = {
-                    'Patient_ID': {'type': 'number', 'min_value': 1},
-                    'Medication_ID': {'type': 'number', 'min_value': 1},
-                    'Reaction_Details': {'type': 'textarea'},
-                    'Date_of_Reaction': {'type': 'date'}
-                }
-
-                with st.form("update_reaction"):
-                    update_data = create_update_form("Reactions", current_reaction, fields_info)
-
-                    if st.form_submit_button("Update Reaction"):
-                        if update_data:
-                            if update_record("Reactions", "Reaction_ID", selected_reaction[0], update_data):
-                                st.success("Reaction updated successfully!")
-                                st.rerun()
-                        else:
-                            st.warning("No changes made to update.")
-
-    with tab4:
-        reactions = fetch_all("Reactions")
-        if reactions:
-            reaction_to_delete = st.selectbox(
-                "Select Reaction to Delete",
-                options=[(r['Reaction_ID'], f"Reaction {r['Reaction_ID']} - Patient {r['Patient_ID']}") for r in reactions],
-                format_func=lambda x: x[1]
-            )
-            if st.button("Delete Reaction"):
-                delete_record("Reactions", "Reaction_ID", reaction_to_delete[0])
+        except Error:
+            # If an error occurs, login failed
+            st.error("Invalid username or password")
 
 def main():
     st.set_page_config(page_title="Medical Database Management", layout="wide")
 
-    sidebar_nav()
+    if "logged_in" not in st.session_state:
+        st.session_state["logged_in"] = False
 
-    if st.session_state.current_page == 'Home':
-        st.title("Medical Database Management System")
-        st.write("""
-        Welcome to the Medical Database Management System.
-        Use the sidebar to navigate through different sections.
-        """)
+    if st.session_state["logged_in"]:
+        sidebar_nav()
 
-        col1, col2, col3, col4 = st.columns(4)
+        if st.session_state.current_page == 'Home':
+            st.title("Medical Database Management System")
+            st.write("""
+            Welcome to the Medical Database Management System.
+            Use the sidebar to navigate through different sections.
+            """)
 
-        with col1:
-            patients = fetch_all("Patient")
-            st.metric("Total Patients", len(patients))
+            col1, col2, col3, col4 = st.columns(4)
 
-        with col2:
-            doctors = fetch_all("Doctor")
-            st.metric("Total Doctors", len(doctors))
+            with col1:
+                patients = fetch_all("Patient")
+                st.metric("Total Patients", len(patients))
 
-        with col3:
-            medications = fetch_all("Medication")
-            st.metric("Total Medications", len(medications))
+            with col2:
+                doctors = fetch_all("Doctor")
+                st.metric("Total Doctors", len(doctors))
 
-        with col4:
-            trials = fetch_all("Clinical_Trial")
-            st.metric("Active Trials", len(trials))
+            with col3:
+                medications = fetch_all("Medication")
+                st.metric("Total Medications", len(medications))
 
-    elif st.session_state.current_page == 'Patients':
-        patient_page()
-    elif st.session_state.current_page == 'Doctors':
-        doctor_page()
-    elif st.session_state.current_page == 'Laboratories':
-        laboratory_page()
-    elif st.session_state.current_page == 'Visits':
-        visit_page()
-    elif st.session_state.current_page == 'Medications':
-        medication_page()
-    elif st.session_state.current_page == 'Manufacturers':
-        manufacturer_page()
-    elif st.session_state.current_page == 'Clinical Trials':
-        clinical_trial_page()
-    elif st.session_state.current_page == 'Results':
-        results_page()
-    elif st.session_state.current_page == 'Reactions':
-        reactions_page()
+            with col4:
+                trials = fetch_all("Clinical_Trial")
+                st.metric("Active Trials", len(trials))
+
+        elif st.session_state.current_page == 'Patients':
+            patient_page()
+        elif st.session_state.current_page == 'Doctors':
+            doctor_page()
+        elif st.session_state.current_page == 'Laboratories':
+            laboratory_page()
+        elif st.session_state.current_page == 'Visits':
+            visit_page()
+        elif st.session_state.current_page == 'Medications':
+            medication_page()
+        elif st.session_state.current_page == 'Manufacturers':
+            manufacturer_page()
+        elif st.session_state.current_page == 'Clinical Trials':
+            clinical_trial_page()
+        elif st.session_state.current_page == 'Results':
+            results_page()
+        elif st.session_state.current_page == 'Reactions':
+            reactions_page()
+
+    else:
+        login_page()
 
 if __name__ == "__main__":
     main()

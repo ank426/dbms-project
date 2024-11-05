@@ -154,20 +154,20 @@ END $$
 DELIMITER ;
 
 
-CREATE USER 'admin';
-CREATE USER 'doctor';
-CREATE USER 'lab';
-CREATE USER 'patient';
+CREATE USER 'admin'@'localhost' IDENTIFIED BY 'admin_password';
+CREATE USER 'doctor'@'localhost' IDENTIFIED BY 'doctor_password';
+CREATE USER 'lab'@'localhost' IDENTIFIED BY 'lab_password';
+CREATE USER 'patient'@'localhost' IDENTIFIED BY 'patient_password';
 
-GRANT ALL PRIVILEGES ON proj.* to 'admin';
+GRANT ALL PRIVILEGES ON proj.* to 'admin'@'localhost';
 
-GRANT SELECT ON proj.* TO 'doctor';
-GRANT INSERT, UPDATE ON proj.Visit TO 'doctor';
-GRANT INSERT, UPDATE ON proj.Results TO 'doctor';
-GRANT INSERT ON proj.Reactions TO 'doctor';
+GRANT SELECT ON proj.* TO 'doctor'@'localhost';
+GRANT INSERT, UPDATE ON proj.Visit TO 'doctor'@'localhost';
+GRANT INSERT, UPDATE ON proj.Results TO 'doctor'@'localhost';
+GRANT INSERT ON proj.Reactions TO 'doctor'@'localhost';
 
-GRANT SELECT ON proj.* TO 'lab';
-GRANT INSERT, UPDATE ON proj.Laboratory TO 'lab';
-GRANT INSERT, UPDATE ON proj.Results TO 'lab';
+GRANT SELECT ON proj.* TO 'lab'@'localhost';
+GRANT INSERT, UPDATE ON proj.Laboratory TO 'lab'@'localhost';
+GRANT INSERT, UPDATE ON proj.Results TO 'lab'@'localhost';
 
-GRANT SELECT ON proj.* TO 'patient';
+GRANT SELECT ON proj.* TO 'patient'@'localhost';
