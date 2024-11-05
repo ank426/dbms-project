@@ -154,54 +154,20 @@ END $$
 DELIMITER ;
 
 
-SET @have_roles = (SELECT IF(COUNT(*) > 0, 'YES', 'NO') 
-                   FROM information_schema.plugins 
-                   WHERE PLUGIN_NAME = 'authentication_policy');
+CREATE USER 'admin';
+CREATE USER 'doctor';
+CREATE USER 'lab';
+CREATE USER 'patient';
 
--- Create roles if supported
-SET @create_role_stmt = IF(@have_roles = 'YES',
-    'CREATE ROLE IF NOT EXISTS admin_role, doctor_role, lab_technician_role, research_assistant_role',
-    'SELECT "Roles not supported in this MySQL version - using direct grants instead"');
-PREPARE stmt FROM @create_role_stmt;
-EXECUTE stmt;
-DEALLOCATE PREPARE stmt;
+GRANT ALL PRIVILEGES ON proj.* to 'admin';
 
--- Create users (if they don't exist)
-CREATE USER IF NOT EXISTS 'admin_user' IDENTIFIED BY 'StrongAdminPass123!';
-CREATE USER IF NOT EXISTS 'doctor_user' IDENTIFIED BY 'StrongDoctorPass123!';
-CREATE USER IF NOT EXISTS 'lab_user' IDENTIFIED BY 'StrongLabPass123!';
-CREATE USER IF NOT EXISTS 'research_user' IDENTIFIED BY 'StrongResearchPass123!';
+GRANT SELECT ON proj.* TO 'doctor';
+GRANT INSERT, UPDATE ON proj.Visit TO 'doctor';
+GRANT INSERT, UPDATE ON proj.Results TO 'doctor';
+GRANT INSERT ON proj.Reactions TO 'doctor';
 
--- Admin user permissions
-GRANT ALL PRIVILEGES ON proj.* TO "admin_user";
+GRANT SELECT ON proj.* TO 'lab';
+GRANT INSERT, UPDATE ON proj.Laboratory TO 'lab';
+GRANT INSERT, UPDATE ON proj.Results TO 'lab';
 
--- Doctor user permissions
-GRANT SELECT ON proj.* TO "doctor_user";
-GRANT INSERT, UPDATE ON proj.Visit TO "doctor_user";
-GRANT INSERT, UPDATE ON proj.Clinical_Trial TO "doctor_user";
-GRANT INSERT ON proj.Reactions TO "doctor_user";
-
--- Lab user permissions
-GRANT SELECT ON proj.* TO "lab_user";
-GRANT INSERT, UPDATE ON proj.Results TO "lab_user";
-
--- Research user permissions
-GRANT SELECT ON proj.* TO "research_user";
-GRANT INSERT, UPDATE ON proj.Clinical_Trial TO "research_user";
-
--- Create view for sensitive patient information
-CREATE OR REPLACE VIEW patient_basic_info AS
-SELECT 
-    Patient_ID,
-    First_Name,
-    Last_Name,
-    Age,
-    Gender,
-    Last_Visit_ID
-FROM Patient;
-
--- Grant view access
-GRANT SELECT ON proj.patient_basic_info TO 'research_user';
-
--- Flush privileges to ensure all changes take effect
-FLUSH PRIVILEGES;
+GRANT SELECT ON proj.* TO 'patient';
